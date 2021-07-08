@@ -27,6 +27,7 @@ func showFlightInformation(client *wingo.Client, emailservice email.Service, fli
 				if originalPrice == 0 {
 					log.Println("precio 0 - saltando")
 					log.Printf("%#v\n", vuelo)
+					continue
 				}
 
 				log.Printf("buscando tarifas servicios del vuelo %s - %s\n", vuelo.FlightNumber, vuelo.DepartureDate)
