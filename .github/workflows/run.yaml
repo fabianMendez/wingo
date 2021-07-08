@@ -9,6 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
+      - run: git config url.https://ghtoken@github.com/.insteadOf https://github.com/
       - run: go env
       - run: go get
       - run: go run cmd/main.go
