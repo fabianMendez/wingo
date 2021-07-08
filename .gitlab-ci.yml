@@ -1,0 +1,15 @@
+image: golang:latest
+
+stages:
+  - run
+
+run-job:
+  stage: run
+  before_script:
+    - export GOPRIVATE=github.com/fabianMendez/bits
+    - git config --global url.https://ghtoken@github.com/.insteadOf https://github.com/
+  script:
+    - go env
+    - go run cmd/main.go
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
