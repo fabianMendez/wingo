@@ -84,8 +84,8 @@ func main() {
 	if true {
 		// now := time.Now()
 		// flightsInformation, err := getInformationFlightsMonthly("BOG", "HAV", formatDate(now), 100)
-		// origin, destination, departureDate := "BOG", "HAV", "2021-08-03"
-		origin, destination, departureDate := "HAV", "BOG", "2021-07-20"
+		origin, destination, departureDate := "BOG", "HAV", "2021-08-03"
+		// origin, destination, departureDate := "HAV", "BOG", "2021-07-20"
 
 		logger.Printf("buscando vuelos %s-%s\n", origin, destination)
 		flightsInformation, err := client.GetInformationFlightsMonthly(origin, destination, departureDate, 0)
