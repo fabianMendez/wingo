@@ -7,9 +7,13 @@ run-job:
   stage: run
   before_script:
     - export GOPRIVATE=github.com/fabianMendez/bits
+    - export GOMODCACHE=.cache/mod
     - git config --global url.https://ghtoken@github.com/.insteadOf https://github.com/
   script:
     - go env
     - go run cmd/main.go
+  cache:
+    paths:
+      - .cache/
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
