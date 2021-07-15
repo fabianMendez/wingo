@@ -28,7 +28,7 @@ var (
 )
 
 const (
-	months     = 1
+	months     = 10
 	outdir     = "flights"
 	maxWorkers = 100
 )
@@ -104,20 +104,20 @@ type getPriceTask struct {
 }
 
 func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, origin, destination, token string) ([]wingo.Service, error) {
-	log.Printf("buscando tarifas servicios del vuelo %s - %s\n", vuelo.FlightNumber, vuelo.DepartureDate)
+	log.Printf("buscando tarifas servicios del vuelo %s-%s: %s - %s\n", origin, destination, vuelo.FlightNumber, vuelo.DepartureDate)
 	serviceQuotes, err := client.RetrieveServiceQuotes([]wingo.FlightService{
 		{Departure: fecha, From: origin, To: destination, FlightID: vuelo.LogicalFlightID},
 	}, token)
 	if err != nil {
 		return nil, err
 	}
-	log.Println("tarifas encontradas")
+	log.Printf("tarifas encontradas del vuelo %s-%s: %s - %s\n", origin, destination, vuelo.FlightNumber, vuelo.DepartureDate)
 
 	log.Println("calculando precio")
 	adminFares := wingo.GetAdminFares(serviceQuotes[0])
 	precio := wingo.GetBundlePrice(wingo.OriginalPlanName, vuelo, adminFares)
 
-	log.Println("Fecha:", vuelo.DepartureDate, "Precio:", formatMoney(precio))
+	log.Printf("precio del vuelo %s-%s (%s - %s): %s\n", origin, destination, vuelo.FlightNumber, vuelo.DepartureDate, formatMoney(precio))
 
 	return serviceQuotes[0].Services, nil
 }
