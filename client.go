@@ -199,3 +199,40 @@ func GetAdminFares(serviceQuote ServiceQuote) float64 {
 	}
 	return 0
 }
+
+func (c *Client) GetRoutes() ([]Route, error) {
+	u := "https://routes-api.wingo.com/v1/completeroute/es"
+
+	var response struct {
+		Response []Route `json:"response"`
+	}
+
+	err := c.requestJSON(http.MethodGet, u, nil, &response, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Response, nil
+}
+
+// now
+// now + 10 months
+func (c *Client) GetFlightScheduleInformation(origin, destination, startDate, endDate string) (FlightScheduleInformation, error) {
+	parameters := url.Values{}
+	parameters.Set("carrierCode", "P5")
+	parameters.Set("searchType", "")
+	parameters.Set("origin", origin)
+	parameters.Set("destination", destination)
+	parameters.Set("startDate", startDate)
+	parameters.Set("endDate", endDate)
+	parameters.Set("flightNumber", "0")
+	parameters.Set("includedCancelled", "false")
+	u := "https://routes-api.wingo.com/v1/scheduleinformation?" + parameters.Encode()
+
+	var response struct {
+		Response FlightScheduleInformation `json:"response"`
+	}
+
+	err := c.requestJSON(http.MethodGet, u, nil, &response, nil)
+	return response.Response, err
+}

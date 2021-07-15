@@ -107,3 +107,42 @@ type Tax struct {
 	TaxCurrencyCode        string  `json:"taxCurrencyCode"`
 	TaxOriginalDescription string  `json:"taxOriginalDescription"`
 }
+
+type Route struct {
+	Code        string  `json:"code"`
+	Name        string  `json:"name"`
+	AirportName string  `json:"airportName"`
+	Country     string  `json:"country"`
+	Currency    string  `json:"currency"`
+	Domestic    bool    `json:"domestic"`
+	Routes      []Route `json:"routes"`
+}
+
+type FlightInformation struct {
+	FlightNumber       string `json:"flightNumber"`
+	Origin             string `json:"origin"`
+	Destination        string `json:"destination"`
+	EstimatedDeparture string `json:"estimatedDeparture"`
+	EstimatedArrival   string `json:"estimatedArrival"`
+	ActualDeparture    string `json:"actualDeparture"`
+	ActualArrival      string `json:"actualArrival"`
+	TimeAdjustor       int64  `json:"timeAdjustor"`
+	Stops              int64  `json:"stops"`
+	Frequency          string `json:"frequency"`
+	Duration           string `json:"duration"`
+	EffectiveDate      string `json:"effectiveDate"`
+	ExpirationDate     string `json:"expirationDate"`
+}
+
+type InformationException struct {
+	ExceptionCode        int64  `json:"exceptionCode"`
+	ExceptionDescription string `json:"exceptionDescription"`
+	ExceptionSource      string `json:"exceptionSource"`
+	ExceptionLevel       string `json:"exceptionLevel"`
+}
+
+type FlightScheduleInformation struct {
+	FlightInformation             []FlightInformation    `json:"flightInformation"`
+	ExceptionInformationException []InformationException `json:"exceptionInformationException"`
+	CanceledDates                 []interface{}          `json:"canceledDates"`
+}
