@@ -15,13 +15,30 @@ import (
 	"github.com/fabianMendez/wingo"
 )
 
-var logger = log.Default()
+var (
+	logger               = log.Default()
+	notificationSettings = []notificationSetting{
+		{
+			origin:      "HAV",
+			destination: "BOG",
+			date:        "2021-07-20",
+			email:       "",
+		},
+	}
+)
 
 const (
 	months     = 1
 	outdir     = "flights"
 	maxWorkers = 100
 )
+
+type notificationSetting struct {
+	origin      string
+	destination string
+	date        string
+	email       string
+}
 
 func formatMoney(n float64) string { return "$ " + humanize.FormatFloat("#,###.##", n) }
 
@@ -130,9 +147,28 @@ func sendNotifications(emailservice email.Service, origin, destination, departur
 	wingoLink := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, departureDate)
 	body += fmt.Sprintf("<br>Link: %s", wingoLink)
 
-	err := emailservice.Send(subject, body, nil, "")
-	if err != nil {
-		return err
+	return sendNotificationEmail(emailservice, origin, destination, departureDate, subject, body)
+}
+
+func getNotificationEmails(origin, destination, date string) []string {
+	var emails []string
+	for _, setting := range notificationSettings {
+		if origin == setting.origin && destination == setting.destination && date == setting.date {
+			emails = append(emails, setting.email)
+		}
+	}
+	return emails
+}
+
+func sendNotificationEmail(emailservice email.Service, origin, destination, date string, subject, body string) error {
+	fmt.Println("===", subject, "===")
+
+	emails := getNotificationEmails(origin, destination, date)
+	for _, email := range emails {
+		err := emailservice.Send(subject, body, nil, email)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -144,12 +180,7 @@ func sendNewFlightNotification(emailservice email.Service, origin, destination, 
 	wingoLink := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, date)
 	body += fmt.Sprintf("<br>Link: %s", wingoLink)
 
-	err := emailservice.Send(subject, body, nil, "")
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return sendNotificationEmail(emailservice, origin, destination, date, subject, body)
 }
 
 func sendPriceChangedNotification(emailservice email.Service, origin, destination, date string, oldPrice, newPrice float64) error {
@@ -165,12 +196,7 @@ func sendPriceChangedNotification(emailservice email.Service, origin, destinatio
 	wingoLink := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, date)
 	body += fmt.Sprintf("<br>Link: %s", wingoLink)
 
-	err := emailservice.Send(subject, body, nil, "")
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return sendNotificationEmail(emailservice, origin, destination, date, subject, body)
 }
 
 func sendNotAvailableNotification(emailservice email.Service, origin, destination, date string, lastPrice float64) error {
@@ -180,12 +206,7 @@ func sendNotAvailableNotification(emailservice email.Service, origin, destinatio
 	wingoLink := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, date)
 	body += fmt.Sprintf("<br>Link: %s", wingoLink)
 
-	err := emailservice.Send(subject, body, nil, "")
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return sendNotificationEmail(emailservice, origin, destination, date, subject, body)
 }
 
 func saveToFile(filename string, v interface{}) error {
@@ -418,7 +439,6 @@ func main() {
 	var savedRoutes []wingo.Route
 	_ = loadFromFile("routes.json", &savedRoutes)
 
-	// origin -> destination -> date -> flights
 	savedFlights, err := loadSavedFlights(savedRoutes)
 	if err != nil {
 		log.Fatal(err)
@@ -434,9 +454,6 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		// flightsInformationResults := []flightsInformationResult{}
-		// flightsInformationMutex := sync.Mutex{}
 
 		type archiveTask struct {
 			fecha               string
@@ -471,40 +488,21 @@ func main() {
 
 		wg := sync.WaitGroup{}
 		count := 0
-		for i, origin := range routes {
-			for j, destination := range origin.Routes {
+		for _, origin := range routes {
+			for _, destination := range origin.Routes {
 				fmt.Println(origin.Name, "=>", destination.Name)
 				count++
-				if i != 0 || j != 0 {
-					continue
-				}
 
 				go func(origin, destination wingo.Route) {
 					defer wg.Done()
 
 					startDate := time.Now()
 					endDate := startDate.AddDate(0, months, 0)
-					// schedule, err := client.GetFlightScheduleInformation(origin.Code, destination.Code, wingo.FormatDate(startDate), wingo.FormatDate(endDate))
-					// if err != nil {
-					// 	log.Fatal(err)
-					// }
-					// // fmt.Println("Schedule:", schedule)
-					// for _, finfo := range schedule.FlightInformation {
-					// 	expDate, err := time.Parse("2006-01-02T15:04:05.999+0000", finfo.ExpirationDate)
-					// 	if err != nil {
-					// 		log.Fatal(err)
-					// 	}
-					// 	fmt.Println(wingo.FormatDate(expDate), finfo.FlightNumber, finfo.Stops)
-					// }
 					days := int(endDate.Sub(startDate).Hours() / 24)
 					flightsInformation, err := client.GetInformationFlightsMonthly(origin.Code, destination.Code, wingo.FormatDate(startDate), days)
 					if err != nil {
 						log.Fatal(err)
 					}
-
-					// flightsInformationMutex.Lock()
-					// flightsInformationResults = append(flightsInformationResults, result)
-					// flightsInformationMutex.Unlock()
 
 					result := flightsInformationResult{
 						flightsInformation: flightsInformation,
@@ -516,8 +514,6 @@ func main() {
 						getPriceTaskChan <- task
 					}
 
-					// fmt.Println(wingo.FormatDate(flightDate))
-					// printFlightInformation(client, flightsInformation, origin.Code, destination.Code)
 				}(origin, destination)
 				wg.Add(1)
 			}
@@ -532,10 +528,8 @@ func main() {
 		fmt.Println("Finished loading flights information")
 		fmt.Println("------------------------------------")
 
-		// fmt.Println("Tasks:", len(tasks))
 		threadsG.Wait()
 
-		// origin -> destination -> date -> flights
 		actualFlights := flightsMap{}
 
 		for _, task := range archiveTasks {
@@ -570,7 +564,6 @@ func main() {
 						if err != nil {
 							fmt.Fprintln(os.Stderr, err)
 						}
-						// fmt.Println(origin, destination, flights)
 
 						err = processFlight(emailservice, savedFlights, date, origin, destination, flight)
 						if err != nil {
@@ -588,41 +581,4 @@ func main() {
 
 		return
 	}
-
-	if true {
-		// now := time.Now()
-		// flightsInformation, err := getInformationFlightsMonthly("BOG", "HAV", formatDate(now), 100)
-		// origin, destination, departureDate := "BOG", "HAV", "2021-08-03"
-		origin, destination, departureDate := "HAV", "BOG", "2021-07-20"
-
-		logger.Printf("buscando vuelos %s-%s\n", origin, destination)
-		flightsInformation, err := client.GetInformationFlightsMonthly(origin, destination, departureDate, 0)
-		if err != nil {
-			log.Fatal(err)
-		}
-		logger.Printf("vuelos encontrados")
-
-		err = showFlightInformation(client, emailservice, flightsInformation, origin, destination)
-		if err != nil {
-			log.Fatal(err)
-		}
-	} else {
-		flightDate := time.Now()
-		stop := flightDate.AddDate(1, 0, 0)
-
-		for flightDate.Before(stop) {
-			days := 4
-			// flightsInformation, err := getInformationFlightsMonthly("HAV", "BOG")
-			flightsInformation, err := client.GetInformationFlightsMonthly("BOG", "HAV", wingo.FormatDate(flightDate), days)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			fmt.Println(wingo.FormatDate(flightDate))
-			showFlightInformation(client, emailservice, flightsInformation, "BOG", "HAV")
-
-			flightDate = flightDate.AddDate(0, 0, days)
-		}
-	}
-
 }

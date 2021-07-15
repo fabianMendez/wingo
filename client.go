@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"golang.org/x/net/proxy"
 )
 
 const (
@@ -25,6 +27,7 @@ type Client struct {
 
 func NewClient(logger *log.Logger) *Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DialContext = proxy.Dial
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	httpClient := &http.Client{Transport: transport}
 
