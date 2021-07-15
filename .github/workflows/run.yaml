@@ -2,20 +2,22 @@ name: Run
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0/10 1-13 * * *'
-    - cron: '0 0 * * *'
-    - cron: '0 14-23 * * *'
+    # - cron: '0/10 1-13 * * *'
+    # - cron: '0 0 * * *'
+    # - cron: '0 14-23 * * *'
+    - cron: '0 0/4 * * *'
 jobs:
   run:
     runs-on: ubuntu-latest
-    env:
-      GOPRIVATE: github.com/fabianMendez/bits
+    # env:
+    #   GOPRIVATE: github.com/fabianMendez/bits
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
-        with:
-            go-version: '1.16'
-      - run: git config --global url.https://ghtoken@github.com/.insteadOf https://github.com/
-      - run: go env
-      - run: go get
-      - run: go run cmd/main.go
+      # - uses: actions/setup-go@v2
+      #   with:
+      #       go-version: '1.16'
+      # - run: git config --global url.https://ghtoken@github.com/.insteadOf https://github.com/
+      # - run: go env
+      # - run: go get
+      # - run: go run cmd/main.go
+      - run: ./main
