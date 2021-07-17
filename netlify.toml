@@ -1,5 +1,6 @@
 [build]
-  publish = "dist/"
+  base = "netlify"
+#  publish = "dist/"
 
 [[headers]]
   for = "/*"
