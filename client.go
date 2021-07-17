@@ -9,7 +9,10 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
+	"sync"
+	"time"
 
 	"golang.org/x/net/proxy"
 )
@@ -20,20 +23,23 @@ const (
 )
 
 type Client struct {
-	httpClient       *http.Client
-	log              *log.Logger
-	aditionalHeaders map[string]string
+	httpClient        *http.Client
+	log               *log.Logger
+	aditionalHeaders  map[string]string
+	RequestCount      int
+	requestCountMutex *sync.Mutex
 }
 
 func NewClient(logger *log.Logger) *Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.DialContext = proxy.Dial
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	httpClient := &http.Client{Transport: transport}
+	httpClient := &http.Client{Transport: transport, Timeout: time.Second * 15}
 
 	return &Client{
-		httpClient: httpClient,
-		log:        logger,
+		httpClient:        httpClient,
+		requestCountMutex: new(sync.Mutex),
+		log:               logger,
 		aditionalHeaders: map[string]string{
 			"User-Agent":      "Mozilla/5.0 (X11; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0",
 			"Origin":          "https://booking.wingo.com",
@@ -44,26 +50,47 @@ func NewClient(logger *log.Logger) *Client {
 }
 
 func (c *Client) request(method, u string, body io.Reader, headers map[string]string) (*http.Response, error) {
-	req, err := http.NewRequest(method, u, body)
-	if err != nil {
-		return nil, fmt.Errorf("could not create request: %w", err)
-	}
+	c.requestCountMutex.Lock()
+	c.RequestCount++
+	c.requestCountMutex.Unlock()
 
-	for headerKey, headerValue := range c.aditionalHeaders {
-		req.Header.Add(headerKey, headerValue)
-	}
+	c.log.Println(method, u)
 
-	for headerKey, headerValue := range headers {
-		req.Header.Add(headerKey, headerValue)
-	}
+	maxRetries := 5
+	var resp *http.Response
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
-	}
+	for i := 1; i <= maxRetries; i++ {
+		req, err := http.NewRequest(method, u, body)
+		if err != nil {
+			return nil, fmt.Errorf("could not create request: %w", err)
+		}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("request failed: %s", resp.Status)
+		for headerKey, headerValue := range c.aditionalHeaders {
+			req.Header.Add(headerKey, headerValue)
+		}
+
+		for headerKey, headerValue := range headers {
+			req.Header.Add(headerKey, headerValue)
+		}
+
+		resp, err = c.httpClient.Do(req)
+		if err != nil {
+			if i != maxRetries {
+				fmt.Fprintf(os.Stderr, "retry %d: %v\n", i, err)
+				continue
+			}
+			return nil, fmt.Errorf("could not send request: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			if i != maxRetries {
+				fmt.Fprintf(os.Stderr, "retry %d: %v\n", i, resp.StatusCode)
+				continue
+			}
+			return nil, fmt.Errorf("request failed: %s %s - %s", method, u, resp.Status)
+		}
+
+		break
 	}
 
 	return resp, nil
