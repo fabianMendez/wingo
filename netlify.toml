@@ -1,5 +1,14 @@
 [build]
   publish = "dist/"
 
+[[headers]]
+  for = "/*"
+
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "POST"
+    Access-Control-Max-Age = "3600"
+    Access-Control-Allow-Headers = "Content-Type"
+
 [functions]
   directory = "functions/"
