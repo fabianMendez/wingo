@@ -589,6 +589,8 @@ func main() {
 		fmt.Println("Finished loading flights information")
 		fmt.Println("------------------------------------")
 
+		actualFlights := flightsMap{}
+		actualFlightsMutex := new(sync.Mutex)
 		archiveTaskChan := make(chan archiveTask, maxWorkers)
 		wgArchive := workgroup(func() {
 			for task := range archiveTaskChan {
@@ -596,6 +598,20 @@ func main() {
 					Vuelo:    task.vuelo,
 					Services: task.services,
 				}
+
+				actualFlightsMutex.Lock()
+				if actualFlights[task.origin] == nil {
+					actualFlights[task.origin] = map[string]map[string][]vueloArchivado{}
+				}
+
+				if actualFlights[task.origin][task.destination] == nil {
+					actualFlights[task.origin][task.destination] = map[string][]vueloArchivado{}
+				}
+
+				actualFlights[task.origin][task.destination][task.fecha] = append(actualFlights[task.origin][task.destination][task.fecha], flight)
+				actualFlightsMutex.Unlock()
+
+				// save to file
 				fname := fmt.Sprintf("%s/%s/%s/%s/%s.json", outdir, task.origin, task.destination, task.fecha, flight.FlightNumber)
 
 				_ = os.MkdirAll(filepath.Dir(fname), os.ModePerm)
@@ -633,8 +649,6 @@ func main() {
 		fmt.Println("----------------------------------")
 		fmt.Println(" Finished saving flights archives ")
 		fmt.Println("----------------------------------")
-
-		actualFlights := flightsMap{}
 
 		err = processUnavailableFlights(emailservice, savedFlights, actualFlights)
 		if err != nil {
