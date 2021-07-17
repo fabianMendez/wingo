@@ -7,7 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/google/uuid"
 )
+
+const notificationsdir = "notifications"
 
 type notificationSetting struct {
 	Origin      string `json:"origin"`
@@ -16,7 +20,7 @@ type notificationSetting struct {
 	Email       string `json:"email"`
 }
 
-func loadNotificationsSettings() ([]notificationSetting, error) {
+func loadNotificationSettings() ([]notificationSetting, error) {
 	fentries, err := os.ReadDir(notificationsdir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -61,4 +65,21 @@ func loadNotificationsSettings() ([]notificationSetting, error) {
 	wg.Wait()
 
 	return settings, nil
+}
+
+var githubStorage = githubSessionStorage{
+	token: "ghtoken",
+	owner: "fabianMendez",
+	repo:  "wingo",
+}
+
+func saveNotificationSetting(setting notificationSetting) error {
+	uid := uuid.New()
+	b, err := json.Marshal(setting)
+	if err != nil {
+		return err
+	}
+
+	fname := filepath.Join(notificationsdir, uid.String()+".json")
+	return githubStorage.Write(fname, b, "add notification")
 }

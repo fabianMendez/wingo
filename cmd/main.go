@@ -1,3 +1,5 @@
+// +build !create_notification_setting
+
 package main
 
 import (
@@ -22,9 +24,8 @@ var (
 )
 
 const (
-	outdir           = "flights"
-	notificationsdir = "notifications"
-	maxWorkers       = 10
+	outdir     = "flights"
+	maxWorkers = 10
 )
 
 func formatMoney(n float64) string { return "$ " + humanize.FormatFloat("#,###.##", n) }
@@ -506,7 +507,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	notificationSettings, err := loadNotificationsSettings()
+	notificationSettings, err := loadNotificationSettings()
 	if err != nil {
 		log.Fatal(err)
 	}
