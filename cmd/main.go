@@ -30,7 +30,7 @@ var (
 const (
 	months     = 10
 	outdir     = "flights"
-	maxWorkers = 100
+	maxWorkers = 10
 )
 
 type notificationSetting struct {
