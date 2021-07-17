@@ -227,22 +227,17 @@ func loadFromFile(filename string, v interface{}) error {
 	return json.NewDecoder(f).Decode(v)
 }
 
-type flightsInformationResult struct {
-	flightsInformation  wingo.FlightsInformation
-	origin, destination wingo.Route
-}
-
-func convertToTasks(result flightsInformationResult) []getPriceTask {
+func convertToTasks(flightsInformation wingo.FlightsInformation, origin, destination string) []getPriceTask {
 	var tasks []getPriceTask
 
-	fechaVuelos := filtrarVuelos(result.flightsInformation.VueloIda)
+	fechaVuelos := filtrarVuelos(flightsInformation.VueloIda)
 	for fecha, vuelos := range fechaVuelos {
 		for _, vuelo := range vuelos {
 			tasks = append(tasks, getPriceTask{
 				fecha:       fecha,
-				token:       result.flightsInformation.Token,
-				origin:      result.origin.Code,
-				destination: result.destination.Code,
+				token:       flightsInformation.Token,
+				origin:      origin,
+				destination: destination,
 				vuelo:       vuelo,
 			})
 		}
@@ -443,6 +438,49 @@ func processUnavailableFlights(emailservice email.Service, savedFlights flightsM
 	return nil
 }
 
+type archiveTask struct {
+	fecha               string
+	vuelo               wingo.Vuelo
+	origin, destination string
+	services            []wingo.Service
+}
+
+func retrieveServices(client *wingo.Client, getPriceTaskChan chan getPriceTask, archiveTasksChan chan<- archiveTask) {
+	for task := range getPriceTaskChan {
+		services, err := printInformation(client, task.fecha, task.vuelo, task.origin, task.destination, task.token)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+
+		archiveTasksChan <- archiveTask{
+			fecha:       task.fecha,
+			vuelo:       task.vuelo,
+			origin:      task.origin,
+			destination: task.destination,
+			services:    services,
+		}
+	}
+}
+
+func getInformationFlightsMonthly(client *wingo.Client, origin, destination string, startDate, endDate time.Time) []getPriceTask {
+	daysAfter := int(endDate.Sub(startDate).Hours() / 24)
+	fmt.Printf("Start date %s-%s: %s", origin, destination, wingo.FormatDate(startDate))
+	fmt.Printf("Days %s-%s: %d\n", origin, destination, daysAfter)
+	flightsInformation, err := client.GetInformationFlightsMonthly(origin, destination, wingo.FormatDate(startDate), daysAfter)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tasks := convertToTasks(flightsInformation, origin, destination)
+	fmt.Printf("Got flightsInformation %s-%s: %d\n", origin, destination, len(tasks))
+	return tasks
+
+	// for _, task := range tasks {
+	// 	getPriceTaskChan <- task
+	// }
+	// fmt.Println("tasks sent")
+}
+
 func main() {
 	starttime := time.Now()
 
@@ -502,124 +540,101 @@ func main() {
 			log.Fatal(err)
 		}
 
-		type archiveTask struct {
-			fecha               string
-			vuelo               wingo.Vuelo
+		var getPriceTasks []getPriceTask
+
+		// wg := sync.WaitGroup{}
+		type getInformationFlightsTask struct {
 			origin, destination string
-			services            []wingo.Service
+			startDate, endDate  time.Time
 		}
+		getInformationFlightsChan := make(chan getInformationFlightsTask, maxWorkers)
 
-		archiveTasks := []archiveTask{}
-		archiveTasksMutex := sync.Mutex{}
-
-		getPriceTaskChan := make(chan getPriceTask, maxWorkers)
-		threadsG := workgroup(func() {
-			for task := range getPriceTaskChan {
-				services, err := printInformation(client, task.fecha, task.vuelo, task.origin, task.destination, task.token)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				archiveTasksMutex.Lock()
-				archiveTasks = append(archiveTasks, archiveTask{
-					fecha:       task.fecha,
-					vuelo:       task.vuelo,
-					origin:      task.origin,
-					destination: task.destination,
-					services:    services,
-				})
-				archiveTasksMutex.Unlock()
-
+		wg := workgroup(func() {
+			for t := range getInformationFlightsChan {
+				tasks := getInformationFlightsMonthly(client, t.origin, t.destination, t.startDate, t.endDate)
+				getPriceTasks = append(getPriceTasks, tasks...)
 			}
 		}, maxWorkers)
 
-		wg := sync.WaitGroup{}
+		fmt.Println("Routes from api:", len(routes))
 		count := 0
 		for _, origin := range routes {
 			for _, destination := range origin.Routes {
 				fmt.Println(origin.Name, "=>", destination.Name)
 				count++
 
-				go func(origin, destination wingo.Route) {
-					defer wg.Done()
-
-					startDate := time.Now()
-					endDate := startDate.AddDate(0, months, 0)
-					days := int(endDate.Sub(startDate).Hours() / 24)
-					flightsInformation, err := client.GetInformationFlightsMonthly(origin.Code, destination.Code, wingo.FormatDate(startDate), days)
-					if err != nil {
-						log.Fatal(err)
+				func(startDate time.Time) {
+					for startDate.Before(stopDate) {
+						endDate := startDate.AddDate(0, 1, 0)
+						fmt.Println("sent")
+						getInformationFlightsChan <- getInformationFlightsTask{
+							origin:      origin.Code,
+							destination: destination.Code,
+							startDate:   startDate,
+							endDate:     endDate,
+						}
+						startDate = endDate
 					}
-
-					result := flightsInformationResult{
-						flightsInformation: flightsInformation,
-						origin:             origin,
-						destination:        destination,
-					}
-
-					for _, task := range convertToTasks(result) {
-						getPriceTaskChan <- task
-					}
-
-				}(origin, destination)
-				wg.Add(1)
+				}(startDate)
 			}
 		}
+		close(getInformationFlightsChan)
 
 		fmt.Println("--------------------------------------")
 		fmt.Println("Waiting to load", count, "flights information")
 		fmt.Println("--------------------------------------")
 		wg.Wait()
-		close(getPriceTaskChan)
+
 		fmt.Println("------------------------------------")
 		fmt.Println("Finished loading flights information")
 		fmt.Println("------------------------------------")
 
-		threadsG.Wait()
+		archiveTaskChan := make(chan archiveTask, maxWorkers)
+		wgArchive := workgroup(func() {
+			for task := range archiveTaskChan {
+				flight := vueloArchivado{
+					Vuelo:    task.vuelo,
+					Services: task.services,
+				}
+				fname := fmt.Sprintf("%s/%s/%s/%s/%s.json", outdir, task.origin, task.destination, task.fecha, flight.FlightNumber)
 
-		actualFlights := flightsMap{}
+				_ = os.MkdirAll(filepath.Dir(fname), os.ModePerm)
 
-		for _, task := range archiveTasks {
-			if actualFlights[task.origin] == nil {
-				actualFlights[task.origin] = map[string]map[string][]vueloArchivado{}
-			}
+				err := saveToFile(fname, flight)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, err)
+				}
 
-			if actualFlights[task.origin][task.destination] == nil {
-				actualFlights[task.origin][task.destination] = map[string][]vueloArchivado{}
-			}
-
-			actualFlights[task.origin][task.destination][task.fecha] = append(actualFlights[task.origin][task.destination][task.fecha], vueloArchivado{
-				Vuelo:    task.vuelo,
-				Services: task.services,
-			})
-		}
-
-		for origin, destinationMap := range actualFlights {
-			for destination, dateMap := range destinationMap {
-				for date, flights := range dateMap {
-					for _, flight := range flights {
-						fname := fmt.Sprintf("%s/%s/%s/%s/%s.json", outdir, origin, destination, date, flight.FlightNumber)
-
-						_ = os.MkdirAll(filepath.Dir(fname), os.ModePerm)
-
-						b, err := json.MarshalIndent(flight, "", "  ")
-						if err != nil {
-							log.Fatal(err)
-						}
-
-						err = os.WriteFile(fname, b, os.ModePerm)
-						if err != nil {
-							fmt.Fprintln(os.Stderr, err)
-						}
-
-						err = processFlight(emailservice, savedFlights, date, origin, destination, flight)
-						if err != nil {
-							fmt.Fprintln(os.Stderr, err)
-						}
-					}
+				err = processFlight(emailservice, savedFlights, task.fecha, task.origin, task.destination, flight)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, err)
 				}
 			}
+		}, maxWorkers)
+
+		getPriceTaskChan := make(chan getPriceTask, maxWorkers)
+		threadsG := workgroup(func() {
+			retrieveServices(client, getPriceTaskChan, archiveTaskChan)
+		}, maxWorkers)
+
+		for _, task := range getPriceTasks {
+			getPriceTaskChan <- task
 		}
+		close(getPriceTaskChan)
+		threadsG.Wait()
+
+		fmt.Println("------------------------------")
+		fmt.Println(" Finished retrieving services ")
+		fmt.Println("------------------------------")
+
+		close(archiveTaskChan)
+		wgArchive.Wait()
+
+		fmt.Println("----------------------------------")
+		fmt.Println(" Finished saving flights archives ")
+		fmt.Println("----------------------------------")
+
+		actualFlights := flightsMap{}
 
 		err = processUnavailableFlights(emailservice, savedFlights, actualFlights)
 		if err != nil {
