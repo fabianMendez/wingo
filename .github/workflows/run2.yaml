@@ -1,4 +1,4 @@
-name: Run
+name: '1th - 4th Month'
 on:
   workflow_dispatch:
   schedule:
