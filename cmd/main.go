@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -28,7 +30,6 @@ var (
 )
 
 const (
-	months     = 10
 	outdir     = "flights"
 	maxWorkers = 10
 )
@@ -272,7 +273,9 @@ type vueloArchivado struct {
 // origin -> destination -> date -> flights
 type flightsMap map[string]map[string]map[string][]vueloArchivado
 
-func loadSavedFlights(savedRoutes []wingo.Route) (flightsMap, error) {
+func loadSavedFlights(savedRoutes []wingo.Route, startDate, stopDate time.Time) (flightsMap, error) {
+	wg := new(sync.WaitGroup)
+	flightsMutex := new(sync.Mutex)
 	flights := flightsMap{}
 
 	for _, origin := range savedRoutes {
@@ -286,48 +289,71 @@ func loadSavedFlights(savedRoutes []wingo.Route) (flightsMap, error) {
 				return nil, err
 			}
 
-			for _, dentry := range direntries {
-				if !dentry.IsDir() {
-					continue
-				}
+			wg.Add(1)
+			go func(origin, destination string, direntries []fs.DirEntry) {
+				defer wg.Done()
 
-				if flights[origin.Code] == nil {
-					flights[origin.Code] = map[string]map[string][]vueloArchivado{}
-				}
-
-				if flights[origin.Code][destination.Code] == nil {
-					flights[origin.Code][destination.Code] = map[string][]vueloArchivado{}
-				}
-
-				datepath := filepath.Join(dirname, dentry.Name())
-				fentries, err := os.ReadDir(datepath)
-				if err != nil {
-					return nil, err
-				}
-
-				for _, fentry := range fentries {
-					var varchivado vueloArchivado
-
-					flightpath := filepath.Join(datepath, fentry.Name())
-					f, err := os.Open(flightpath)
-					if err != nil {
-						return nil, err
-					}
-					defer f.Close()
-
-					err = json.NewDecoder(f).Decode(&varchivado)
-					if err != nil {
-						return nil, err
+				for _, dentry := range direntries {
+					if !dentry.IsDir() {
+						continue
 					}
 
-					flights[origin.Code][destination.Code][dentry.Name()] = append(
-						flights[origin.Code][destination.Code][dentry.Name()],
-						varchivado,
-					)
+					flightsMutex.Lock()
+					if flights[origin] == nil {
+						flights[origin] = map[string]map[string][]vueloArchivado{}
+					}
+
+					if flights[origin][destination] == nil {
+						flights[origin][destination] = map[string][]vueloArchivado{}
+					}
+					flightsMutex.Unlock()
+
+					datepath := filepath.Join(dirname, dentry.Name())
+					fentries, err := os.ReadDir(datepath)
+					if err != nil {
+						// return nil, err
+						continue
+					}
+
+					for _, fentry := range fentries {
+						var varchivado vueloArchivado
+
+						flightpath := filepath.Join(datepath, fentry.Name())
+						f, err := os.Open(flightpath)
+						if err != nil {
+							// return nil, err
+							continue
+						}
+						defer f.Close()
+
+						err = json.NewDecoder(f).Decode(&varchivado)
+						if err != nil {
+							// return nil, err
+							continue
+						}
+
+						datestr := dentry.Name()
+						date, err := wingo.ParseDate(datestr)
+						if err != nil {
+							continue
+						}
+
+						if date.Before(startDate) || date.After(stopDate) {
+							continue
+						}
+
+						flightsMutex.Lock()
+						flights[origin][destination][datestr] = append(
+							flights[origin][destination][datestr],
+							varchivado,
+						)
+						flightsMutex.Unlock()
+					}
 				}
-			}
+			}(origin.Code, destination.Code, direntries)
 		}
 	}
+	wg.Wait()
 
 	return flights, nil
 }
@@ -424,7 +450,27 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Duración:", time.Since(starttime))
 	}()
 
+	months, err := strconv.Atoi(os.Getenv("WINGO_MONTHS"))
+	if err != nil {
+		months = 1
+	}
+
+	startMonths, err := strconv.Atoi(os.Getenv("WINGO_START_MONTHS"))
+	if err != nil {
+		startMonths = 0
+	}
+
+	startDate := time.Now().AddDate(0, startMonths, 0)
+	stopDate := startDate.AddDate(0, months, 0)
+
+	fmt.Println("--------------------------------------")
+	fmt.Println("  Start:", wingo.FormatDate(startDate), "End:", wingo.FormatDate(stopDate))
+	fmt.Println("--------------------------------------")
+
 	client := wingo.NewClient(logger)
+	defer func() {
+		fmt.Println("Request Count:", client.RequestCount)
+	}()
 
 	emailservice, err := email.NewService(&config.EmailConfig{
 		Host:     "",
@@ -439,12 +485,13 @@ func main() {
 	var savedRoutes []wingo.Route
 	_ = loadFromFile("routes.json", &savedRoutes)
 
-	savedFlights, err := loadSavedFlights(savedRoutes)
+	logger.Println("Cargando rutas guardadas")
+	savedFlights, err := loadSavedFlights(savedRoutes, startDate, stopDate)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Rutas guardadas:", len(savedRoutes))
+	logger.Println("Rutas guardadas:", len(savedRoutes))
 
 	routes, err := client.GetRoutes()
 	if err != nil {
