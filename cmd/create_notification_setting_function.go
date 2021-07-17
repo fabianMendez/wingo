@@ -25,6 +25,12 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (*event
 
 	return &events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "POST",
+			"Access-Control-Max-Age":       "3600",
+			"Access-Control-Allow-Headers": "Content-Type",
+		},
 	}, nil
 }
 
