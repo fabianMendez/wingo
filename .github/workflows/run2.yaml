@@ -2,7 +2,7 @@ name: '2th - 4th Month'
 on:
   workflow_dispatch:
   schedule:
-    - cron: '15 0/6 * * *'
+    - cron: '15 0/12 * * *'
 jobs:
   run:
     runs-on: ubuntu-latest
