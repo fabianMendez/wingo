@@ -29,4 +29,5 @@ jobs:
           git add routes.json flights
           timestamp=$(date -u)
           git commit -m "Latest data: ${timestamp}" || exit 0
+          git pull origin main --rebase --autostash
           git push
