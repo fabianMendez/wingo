@@ -468,6 +468,19 @@ func getInformationFlightsMonthly(client *wingo.Client, origin, destination stri
 	// fmt.Println("tasks sent")
 }
 
+func checkDate(startDate, endDate time.Time, date string) error {
+	f, err := wingo.ParseDate(date)
+	if err != nil {
+		return err
+	}
+	if f.Before(startDate) {
+		return fmt.Errorf("%v is before %v", f, startDate)
+	} else if f.After(endDate) {
+		return fmt.Errorf("%v is after %v", f, startDate)
+	}
+	return nil
+}
+
 func main() {
 	starttime := time.Now()
 
@@ -544,6 +557,11 @@ func main() {
 		wg := workgroup(func() {
 			for t := range getInformationFlightsChan {
 				tasks := getInformationFlightsMonthly(client, t.origin, t.destination, t.startDate, t.endDate)
+				for _, t2 := range tasks {
+					if err := checkDate(t.startDate, t.endDate, t2.fecha); err != nil {
+						fmt.Fprintln(os.Stderr, err)
+					}
+				}
 				getPriceTasks = append(getPriceTasks, tasks...)
 			}
 		}, maxWorkers)
@@ -558,7 +576,6 @@ func main() {
 				func(startDate time.Time) {
 					for startDate.Before(stopDate) {
 						endDate := startDate.AddDate(0, 1, 0)
-						fmt.Println("sent")
 						getInformationFlightsChan <- getInformationFlightsTask{
 							origin:      origin.Code,
 							destination: destination.Code,
