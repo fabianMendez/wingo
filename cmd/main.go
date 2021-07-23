@@ -498,7 +498,8 @@ func main() {
 		startMonths = 0
 	}
 
-	startDate := time.Now().AddDate(0, startMonths, 0)
+	now := time.Now()
+	startDate := time.Date(now.Year(), now.Month()+time.Month(startMonths), now.Day(), 0, 0, 0, 0, now.Location())
 	stopDate := startDate.AddDate(0, months, 0)
 
 	fmt.Println("--------------------------------------")
