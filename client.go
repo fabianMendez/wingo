@@ -59,6 +59,9 @@ func (c *Client) request(method, u string, body io.Reader, headers map[string]st
 
 	maxRetries := 10
 	boff := backoff.NewExponentialBackOff()
+	boff.InitialInterval = 5 * time.Second
+	boff.Reset()
+
 	var resp *http.Response
 
 	for i := 1; i <= maxRetries; i++ {
