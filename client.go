@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/net/proxy"
 )
 
@@ -56,10 +57,17 @@ func (c *Client) request(method, u string, body io.Reader, headers map[string]st
 
 	c.log.Println(method, u)
 
-	maxRetries := 5
+	maxRetries := 10
+	boff := backoff.NewExponentialBackOff()
 	var resp *http.Response
 
 	for i := 1; i <= maxRetries; i++ {
+		if i > 1 {
+			boffDuration := boff.NextBackOff()
+			c.log.Println("*** Backoff retry", i, ":", boffDuration)
+			time.Sleep(boffDuration)
+		}
+
 		req, err := http.NewRequest(method, u, body)
 		if err != nil {
 			return nil, fmt.Errorf("could not create request: %w", err)

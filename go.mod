@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/aws/aws-lambda-go v1.25.0
+	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fabianMendez/bits v1.0.0
 	github.com/google/uuid v1.3.0

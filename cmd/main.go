@@ -101,11 +101,11 @@ func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, ori
 	}
 	log.Printf("tarifas encontradas del vuelo %s-%s: %s - %s\n", origin, destination, vuelo.FlightNumber, vuelo.DepartureDate)
 
-	log.Println("calculando precio")
-	adminFares := wingo.GetAdminFares(serviceQuotes[0])
-	precio := wingo.GetBundlePrice(wingo.OriginalPlanName, vuelo, adminFares)
+	// log.Println("calculando precio")
+	// adminFares := wingo.GetAdminFares(serviceQuotes[0])
+	// precio := wingo.GetBundlePrice(wingo.OriginalPlanName, vuelo, adminFares)
 
-	log.Printf("precio del vuelo %s-%s (%s - %s): %s\n", origin, destination, vuelo.FlightNumber, vuelo.DepartureDate, formatMoney(precio))
+	// log.Printf("precio del vuelo %s-%s (%s - %s): %s\n", origin, destination, vuelo.FlightNumber, vuelo.DepartureDate, formatMoney(precio))
 
 	return serviceQuotes[0].Services, nil
 }
@@ -437,6 +437,7 @@ func retrieveServices(client *wingo.Client, getPriceTaskChan chan getPriceTask, 
 		services, err := printInformation(client, task.fecha, task.vuelo, task.origin, task.destination, task.token)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			continue
 		}
 
 		archiveTasksChan <- archiveTask{
