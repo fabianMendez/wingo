@@ -1,4 +1,4 @@
-package wingo
+package date
 
 import (
 	"fmt"
@@ -7,11 +7,15 @@ import (
 	"time"
 )
 
-func FormatDate(t time.Time) string {
+func Format(t time.Time) string {
 	return t.Format("2006-01-02")
 }
 
-func ParseDate(s string) (*time.Time, error) {
+func Parse(s string) (*time.Time, error) {
+	if strings.Contains(s, "T") {
+		s = s[:strings.Index(s, "T")]
+	}
+
 	parts := strings.Split(s, "-")
 	if len(parts) != 3 {
 		return nil, fmt.Errorf("invalid date: %s", s)

@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"bytes"
@@ -9,19 +9,19 @@ import (
 	"net/http"
 )
 
-type githubSessionStorage struct {
-	token string
-	owner string
-	repo  string
+type GithubStorage struct {
+	Token string
+	Owner string
+	Repo  string
 }
 
-func (ss githubSessionStorage) request(method, u string, body io.Reader, headers map[string]string) (*http.Response, error) {
+func (ss GithubStorage) request(method, u string, body io.Reader, headers map[string]string) (*http.Response, error) {
 	req, err := http.NewRequest(method, u, body)
 	if err != nil {
 		return nil, fmt.Errorf("could not create request: %w", err)
 	}
 
-	req.Header.Set("Authorization", "token "+ss.token)
+	req.Header.Set("Authorization", "token "+ss.Token)
 	for headerKey, headerValue := range headers {
 		req.Header.Add(headerKey, headerValue)
 	}
@@ -38,7 +38,7 @@ func (ss githubSessionStorage) request(method, u string, body io.Reader, headers
 	return resp, nil
 }
 
-func (ss githubSessionStorage) requestJSON(method, u string, body io.Reader, v interface{}) error {
+func (ss GithubStorage) requestJSON(method, u string, body io.Reader, v interface{}) error {
 	resp, err := ss.request(method, u, body, map[string]string{
 		"Accept": "application/vnd.github.v3+json",
 	})
@@ -57,8 +57,8 @@ func (ss githubSessionStorage) requestJSON(method, u string, body io.Reader, v i
 	return nil
 }
 
-func (ss githubSessionStorage) url(path string) string {
-	return fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", ss.owner, ss.repo, path)
+func (ss GithubStorage) url(path string) string {
+	return fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", ss.Owner, ss.Repo, path)
 }
 
 type fileContentsResponse struct {
@@ -80,7 +80,7 @@ type fileContentsResponse struct {
 	} `json:"_links"`
 }
 
-func (ss githubSessionStorage) getFileContents(path string) (fileContentsResponse, error) {
+func (ss GithubStorage) getFileContents(path string) (fileContentsResponse, error) {
 	var response fileContentsResponse
 
 	u := ss.url(path)
@@ -92,7 +92,7 @@ func (ss githubSessionStorage) getFileContents(path string) (fileContentsRespons
 	return response, nil
 }
 
-func (ss githubSessionStorage) getSHA(path string) string {
+func (ss GithubStorage) getSHA(path string) string {
 	fileContents, err := ss.getFileContents(path)
 	if err != nil {
 		return ""
@@ -100,7 +100,7 @@ func (ss githubSessionStorage) getSHA(path string) string {
 	return fileContents.SHA
 }
 
-func (ss githubSessionStorage) Write(path string, b []byte, message string) error {
+func (ss GithubStorage) Write(path string, b []byte, message string) error {
 	u := ss.url(path)
 	sha := ss.getSHA(path)
 	content := base64.StdEncoding.EncodeToString(b)

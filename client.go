@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fabianMendez/wingo/pkg/date"
 	"golang.org/x/net/proxy"
 )
 
@@ -123,13 +124,13 @@ func (c *Client) requestJSON(method, u string, body io.Reader, v interface{}, he
 }
 
 func (c *Client) GetInformationFlightsMonthly(origin, destination, startDate string, daysAfter int) (FlightsInformation, error) {
-	startTime, err := ParseDate(startDate)
+	startTime, err := date.Parse(startDate)
 	if err != nil {
 		return FlightsInformation{}, err
 	}
 
 	endTime := startTime.AddDate(0, 0, daysAfter)
-	originEndDate := FormatDate(endTime)
+	originEndDate := date.Format(endTime)
 
 	parameters := url.Values{}
 	parameters.Set("origin", origin)

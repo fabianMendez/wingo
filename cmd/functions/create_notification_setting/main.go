@@ -1,5 +1,3 @@
-// +build create_notification_setting
-
 package main
 
 import (
@@ -9,19 +7,24 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/fabianMendez/wingo/pkg/notifications"
 )
 
 func handler(ctx context.Context, request events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
-	var setting notificationSetting
+	var setting notifications.Setting
 	err := json.Unmarshal([]byte(request.Body), &setting)
 	if err != nil {
 		return nil, err
 	}
 
-	err = saveNotificationSetting(setting)
+	setting.Confirmed = false
+
+	err = notifications.SaveSetting(setting)
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: send confirmation email
 
 	return &events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,

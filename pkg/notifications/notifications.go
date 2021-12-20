@@ -1,4 +1,4 @@
-package main
+package notifications
 
 import (
 	"encoding/json"
@@ -8,19 +8,21 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/fabianMendez/wingo/pkg/storage"
 	"github.com/google/uuid"
 )
 
 const notificationsdir = "notifications"
 
-type notificationSetting struct {
+type Setting struct {
 	Origin      string `json:"origin"`
 	Destination string `json:"destination"`
 	Date        string `json:"date"`
 	Email       string `json:"email"`
+	Confirmed   bool   `json:"confirmed"`
 }
 
-func loadNotificationSettings() ([]notificationSetting, error) {
+func LoadAllSettings() ([]Setting, error) {
 	fentries, err := os.ReadDir(notificationsdir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -30,7 +32,7 @@ func loadNotificationSettings() ([]notificationSetting, error) {
 	}
 
 	settingsMutex := new(sync.Mutex)
-	settings := []notificationSetting{}
+	settings := []Setting{}
 
 	wg := new(sync.WaitGroup)
 
@@ -50,7 +52,7 @@ func loadNotificationSettings() ([]notificationSetting, error) {
 			}
 
 			defer f.Close()
-			var setting notificationSetting
+			var setting Setting
 			err = json.NewDecoder(f).Decode(&setting)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
@@ -67,13 +69,13 @@ func loadNotificationSettings() ([]notificationSetting, error) {
 	return settings, nil
 }
 
-var githubStorage = githubSessionStorage{
-	token: "ghtoken",
-	owner: "fabianMendez",
-	repo:  "wingo",
+var githubStorage = storage.GithubStorage{
+	Token: "ghtoken",
+	Owner: "fabianMendez",
+	Repo:  "wingo",
 }
 
-func saveNotificationSetting(setting notificationSetting) error {
+func SaveSetting(setting Setting) error {
 	uid := uuid.New()
 	b, err := json.Marshal(setting)
 	if err != nil {
