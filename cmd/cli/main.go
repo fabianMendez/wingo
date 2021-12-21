@@ -672,6 +672,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	notificationSettings = notifications.FilterConfirmed(notificationSettings)
 
 	var savedRoutes []wingo.Route
 	_ = loadFromFile("routes.json", &savedRoutes)

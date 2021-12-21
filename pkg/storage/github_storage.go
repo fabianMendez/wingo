@@ -100,6 +100,21 @@ func (ss GithubStorage) getSHA(path string) string {
 	return fileContents.SHA
 }
 
+func (ss GithubStorage) Read(path string) ([]byte, error) {
+	fileContents, err := ss.getFileContents(path)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.Get(fileContents.DownloadURL)
+	if err != nil {
+		return nil, fmt.Errorf("could not download file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	return io.ReadAll(resp.Body)
+}
+
 func (ss GithubStorage) Write(path string, b []byte, message string) error {
 	u := ss.url(path)
 	sha := ss.getSHA(path)

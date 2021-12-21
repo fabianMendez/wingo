@@ -85,3 +85,30 @@ func SaveSetting(setting Setting) error {
 	fname := filepath.Join(notificationsdir, uid.String()+".json")
 	return githubStorage.Write(fname, b, "add notification")
 }
+
+func GetSetting(uid string) (Setting, error) {
+	var setting Setting
+	fname := filepath.Join(notificationsdir, uid+".json")
+
+	content, err := githubStorage.Read(fname)
+	if err != nil {
+		return setting, fmt.Errorf("could not read setting: %w", err)
+	}
+
+	err = json.Unmarshal(content, &setting)
+	if err != nil {
+		return setting, fmt.Errorf("could not decode setting: %w", err)
+	}
+
+	return setting, nil
+}
+
+func FilterConfirmed(settings []Setting) []Setting {
+	filtered := []Setting{}
+	for _, setting := range settings {
+		if setting.Confirmed {
+			filtered = append(filtered, setting)
+		}
+	}
+	return filtered
+}
