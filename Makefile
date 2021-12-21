@@ -3,7 +3,7 @@
 all: build functions
 
 build:
-	cd cmd && go build -o ../main && cd -
+	go build -o main cmd/cli/main.go
 
 functions:
 	go build -o netlify/functions/create_notification_setting cmd/functions/create_notification_setting/main.go
