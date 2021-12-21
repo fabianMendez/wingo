@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -38,7 +37,7 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (*event
 	<br>
 	<p>If you did not request this subscription, please ignore this message.</p>
 	`
-	baseURL := `http://localhost:9043/confirm_notification_setting`
+	baseURL := os.Getenv("URL")
 	err = emailservice.Send(`Please confirm your subscription`, body, map[string]string{
 		"uid":     uid,
 		"baseURL": baseURL,
@@ -46,8 +45,6 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (*event
 	if err != nil {
 		return nil, err
 	}
-
-	respBody := strings.Join(os.Environ(), "\n")
 
 	return &events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
@@ -57,7 +54,6 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (*event
 			"Access-Control-Max-Age":       "3600",
 			"Access-Control-Allow-Headers": "Content-Type",
 		},
-		Body: respBody,
 	}, nil
 }
 
