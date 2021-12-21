@@ -14,6 +14,17 @@ import (
 	"github.com/fabianMendez/wingo/pkg/notifications"
 )
 
+var baseURL = os.Getenv("URL")
+
+const body = `<h1>Confirm your subscription</h1>
+<br>
+<p>Use the following link to confirm your subscription to receive notifications about price updates in the route:
+<a href="{{.baseURL}}/.netlify/functions/confirm_notification_setting?uid={{.uid}}"> Confirm</a>
+</p>
+<br>
+<p>If you did not request this subscription, please ignore this message.</p>
+`
+
 func handler(ctx context.Context, request events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 	var setting notifications.Setting
 	err := json.Unmarshal([]byte(request.Body), &setting)
@@ -29,15 +40,6 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (*event
 	}
 
 	// send confirmation email
-	body := `<h1>Confirm your subscription</h1>
-	<br>
-	<p>Use the following link to confirm your subscription to receive notifications about price updates in the route:
-	<a href="{{.baseURL}}?uid={{.uid}}"> Confirm</a>
-	</p>
-	<br>
-	<p>If you did not request this subscription, please ignore this message.</p>
-	`
-	baseURL := os.Getenv("URL")
 	err = emailservice.Send(`Please confirm your subscription`, body, map[string]string{
 		"uid":     uid,
 		"baseURL": baseURL,
