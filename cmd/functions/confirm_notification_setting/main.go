@@ -26,7 +26,7 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (*event
 
 	setting.Confirmed = true
 
-	err = notifications.SaveSetting(setting)
+	err = notifications.UpdateSetting(uid, setting)
 	if err != nil {
 		return nil, err
 	}

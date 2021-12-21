@@ -75,15 +75,35 @@ var githubStorage = storage.GithubStorage{
 	Repo:  "wingo",
 }
 
-func SaveSetting(setting Setting) error {
+func SaveSetting(setting Setting) (string, error) {
 	uid := uuid.New()
+	b, err := json.Marshal(setting)
+	if err != nil {
+		return "", err
+	}
+
+	fname := filepath.Join(notificationsdir, uid.String()+".json")
+	err = githubStorage.Write(fname, b, "add notification")
+	if err != nil {
+		return "", fmt.Errorf("could not save setting: %w", err)
+	}
+
+	return uid.String(), nil
+}
+
+func UpdateSetting(uid string, setting Setting) error {
 	b, err := json.Marshal(setting)
 	if err != nil {
 		return err
 	}
 
-	fname := filepath.Join(notificationsdir, uid.String()+".json")
-	return githubStorage.Write(fname, b, "add notification")
+	fname := filepath.Join(notificationsdir, uid+".json")
+	err = githubStorage.Write(fname, b, "update notification")
+	if err != nil {
+		return fmt.Errorf("could not save setting: %w", err)
+	}
+
+	return nil
 }
 
 func GetSetting(uid string) (Setting, error) {
