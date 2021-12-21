@@ -12,12 +12,12 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4zYo=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
-github.com/fabianMendez/bits v1.0.0 h1:qk1mWAvVBNJf0AgPtYI9ll3BuVuBPt2diAQH0ctHazc=
-github.com/fabianMendez/bits v1.0.0/go.mod h1:3psoM2LTkozsGRj2wV26p012jLhZHB3arin04rfnreM=
+github.com/fabianMendez/bits v0.0.0-20211221184339-4e0d0fe71b60 h1:DkTlbT6T4IMwPdgzdI/UmaOFR1M2STwmjCr73zcCAgQ=
+github.com/fabianMendez/bits v0.0.0-20211221184339-4e0d0fe71b60/go.mod h1:RmGElCRGPOR7EnJPKaztQ3UQ49DP8IL/98fz9S4QDHI=
+github.com/fabianMendez/bits v1.0.0 h1:wJSW9La8jIPgsLCQIy6jLewgnavC1czm0/KBe9gc/FM=
+github.com/fabianMendez/bits v1.0.0/go.mod h1:RmGElCRGPOR7EnJPKaztQ3UQ49DP8IL/98fz9S4QDHI=
 github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
 github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/kelseyhightower/envconfig v1.4.0 h1:Im6hONhd3pLkfDFsbRgu68RDNkGF1r3dvMUtDTo2cv8=
-github.com/kelseyhightower/envconfig v1.4.0/go.mod h1:cccZRl6mQpaq41TPp5QxidR+Sa3axMbJDNb//FQX6Gg=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=

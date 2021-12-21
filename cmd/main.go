@@ -13,8 +13,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/fabianMendez/bits/pkg/config"
-	"github.com/fabianMendez/bits/pkg/email"
+	"github.com/fabianMendez/bits/email"
 	"github.com/fabianMendez/wingo"
 	"github.com/fabianMendez/wingo/pkg/date"
 	"github.com/fabianMendez/wingo/pkg/notifications"
@@ -658,7 +657,7 @@ func main() {
 		fmt.Println("Request Count:", client.RequestCount)
 	}()
 
-	emailservice, err := email.NewService(&config.EmailConfig{
+	emailservice, err := email.NewService(&email.Config{
 		Host:     "",
 		Port:     587,
 		Username: "",
