@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/fabianMendez/bits/email"
 	"github.com/fabianMendez/wingo"
 	"github.com/fabianMendez/wingo/pkg/date"
 	"github.com/fabianMendez/wingo/pkg/notifications"
@@ -30,7 +29,7 @@ const (
 
 func formatMoney(n float64) string { return "$ " + humanize.FormatFloat("#,###.##", n) }
 
-func showFlightInformation(client *wingo.Client, emailservice email.Service, notificationSettings []notifications.Setting, flightsInformation wingo.FlightsInformation, origin, destination string) error {
+func showFlightInformation(client *wingo.Client, notificationSettings []notifications.Setting, flightsInformation wingo.FlightsInformation, origin, destination string) error {
 	// fmt.Printf("%#v\n", flightsInformation)
 	// log.Println("Vuelos Ida:", len(flightsInformation.VueloIda))
 
@@ -54,7 +53,7 @@ func showFlightInformation(client *wingo.Client, emailservice email.Service, not
 
 			log.Println("Fecha:", vuelo.DepartureDate, "Precio:", formatMoney(precio))
 
-			err = sendNotifications(emailservice, notificationSettings, origin, destination, fecha, precio)
+			err = sendNotifications(notificationSettings, origin, destination, fecha, precio)
 			if err != nil {
 				return err
 			}
@@ -129,13 +128,13 @@ func printFlightInformation(client *wingo.Client, flightsInformation wingo.Fligh
 	return nil
 }
 
-func sendNotifications(emailservice email.Service, notificationSettings []notifications.Setting, origin, destination, departureDate string, price float64) error {
+func sendNotifications(notificationSettings []notifications.Setting, origin, destination, departureDate string, price float64) error {
 	subject := fmt.Sprintf("Precio del viaje %s-%s %s", origin, destination, departureDate)
 	body := fmt.Sprintf("El precio del viaje %s-%s para la fecha %s es: <b>%s</b>", origin, destination, departureDate, formatMoney(price))
 	wingoLink := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, departureDate)
 	body += fmt.Sprintf("<br>Link: %s", wingoLink)
 
-	return sendNotificationEmail(emailservice, notificationSettings, origin, destination, departureDate, subject, body)
+	return sendNotificationEmail(notificationSettings, origin, destination, departureDate, subject, body)
 }
 
 func getNotificationEmails(notificationSettings []notifications.Setting, origin, destination, date string) []string {
@@ -148,7 +147,7 @@ func getNotificationEmails(notificationSettings []notifications.Setting, origin,
 	return emails
 }
 
-func sendNotificationEmail(emailservice email.Service, notificationSettings []notifications.Setting, origin, destination, date string, subject, body string) error {
+func sendNotificationEmail(notificationSettings []notifications.Setting, origin, destination, date string, subject, body string) error {
 	fmt.Println("===", subject, "===")
 	fmt.Println(body)
 
@@ -164,16 +163,16 @@ func sendNotificationEmail(emailservice email.Service, notificationSettings []no
 	return nil
 }
 
-func sendNewFlightNotification(emailservice email.Service, notificationSettings []notifications.Setting, origin, destination, date string, price float64) error {
+func sendNewFlightNotification(notificationSettings []notifications.Setting, origin, destination, date string, price float64) error {
 	subject := fmt.Sprintf("Precio del viaje %s-%s %s", origin, destination, date)
 	body := fmt.Sprintf("El precio del viaje %s-%s para la fecha %s es: <b>%s</b>", origin, destination, date, formatMoney(price))
 	wingoLink := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, date)
 	body += fmt.Sprintf("<br>Link: %s", wingoLink)
 
-	return sendNotificationEmail(emailservice, notificationSettings, origin, destination, date, subject, body)
+	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, body)
 }
 
-func sendPriceChangedNotification(emailservice email.Service, notificationSettings []notifications.Setting, origin, destination, date string, oldPrice, newPrice float64) error {
+func sendPriceChangedNotification(notificationSettings []notifications.Setting, origin, destination, date string, oldPrice, newPrice float64) error {
 	accion := "SUBIÓ"
 	if oldPrice > newPrice {
 		accion = "BAJÓ"
@@ -186,17 +185,17 @@ func sendPriceChangedNotification(emailservice email.Service, notificationSettin
 	wingoLink := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, date)
 	body += fmt.Sprintf("<br>Link: %s", wingoLink)
 
-	return sendNotificationEmail(emailservice, notificationSettings, origin, destination, date, subject, body)
+	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, body)
 }
 
-func sendNotAvailableNotification(emailservice email.Service, notificationSettings []notifications.Setting, origin, destination, date string, lastPrice float64) error {
+func sendNotAvailableNotification(notificationSettings []notifications.Setting, origin, destination, date string, lastPrice float64) error {
 	subject := fmt.Sprintf("El vuelo %s-%s %s ya NO está disponible", origin, destination, date)
 	body := fmt.Sprintf("El vuelo %s-%s %s ya NO está disponible", origin, destination, date)
 
 	wingoLink := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, date)
 	body += fmt.Sprintf("<br>Link: %s", wingoLink)
 
-	return sendNotificationEmail(emailservice, notificationSettings, origin, destination, date, subject, body)
+	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, body)
 }
 
 func saveToFile(filename string, v interface{}) error {
@@ -378,13 +377,13 @@ func findFlight(savedFlights flightsMap, origin, destination, date, flightNumber
 	return vueloArchivado{}, false
 }
 
-func processFlight(emailservice email.Service, notificationSettings []notifications.Setting, savedFlights flightsMap, date, origin, destination string, flight vueloArchivado) error {
+func processFlight(notificationSettings []notifications.Setting, savedFlights flightsMap, date, origin, destination string, flight vueloArchivado) error {
 	previous, previousFound := findFlight(savedFlights, origin, destination, date, flight.FlightNumber)
 
 	price := calculatePrice(flight.Vuelo, flight.Services)
 	// 1. Antes NO disponible y ahora disponible?
 	if !previousFound {
-		err := sendNewFlightNotification(emailservice, notificationSettings, origin, destination, date, price)
+		err := sendNewFlightNotification(notificationSettings, origin, destination, date, price)
 		if err != nil {
 			return err
 		}
@@ -392,7 +391,7 @@ func processFlight(emailservice email.Service, notificationSettings []notificati
 		savedPrice := calculatePrice(previous.Vuelo, previous.Services)
 		// 2. Antes disponible y ahora diferente precio?
 		if price != savedPrice {
-			err := sendPriceChangedNotification(emailservice, notificationSettings, origin, destination, date, savedPrice, price)
+			err := sendPriceChangedNotification(notificationSettings, origin, destination, date, savedPrice, price)
 			if err != nil {
 				return err
 			}
@@ -402,7 +401,7 @@ func processFlight(emailservice email.Service, notificationSettings []notificati
 	return nil
 }
 
-func processUnavailableFlights(emailservice email.Service, notificationSettings []notifications.Setting, savedFlights flightsMap, actualFlights flightsMap) error {
+func processUnavailableFlights(notificationSettings []notifications.Setting, savedFlights flightsMap, actualFlights flightsMap) error {
 	// 3. Antes disponible y ahora NO disponible?
 	for origin, originMap := range savedFlights {
 		for destination, destinationMap := range originMap {
@@ -414,7 +413,7 @@ func processUnavailableFlights(emailservice email.Service, notificationSettings 
 						_ = os.Remove(flightpath)
 
 						savedPrice := calculatePrice(savedFlight.Vuelo, savedFlight.Services)
-						err := sendNotAvailableNotification(emailservice, notificationSettings, origin, destination, date, savedPrice)
+						err := sendNotAvailableNotification(notificationSettings, origin, destination, date, savedPrice)
 						if err != nil {
 							return err
 						}
@@ -427,14 +426,14 @@ func processUnavailableFlights(emailservice email.Service, notificationSettings 
 	return nil
 }
 
-func processSchedule(emailservice email.Service, notificationSettings []notifications.Setting,
+func processSchedule(notificationSettings []notifications.Setting,
 	savedFlights flightsMap, date, origin, destination string, flight vueloArchivado) error {
 	previous, previousFound := findFlight(savedFlights, origin, destination, date, flight.FlightNumber)
 
 	price := calculatePrice(flight.Vuelo, flight.Services)
 	// 1. Antes NO disponible y ahora disponible?
 	if !previousFound {
-		err := sendNewFlightNotification(emailservice, notificationSettings, origin, destination, date, price)
+		err := sendNewFlightNotification(notificationSettings, origin, destination, date, price)
 		if err != nil {
 			return err
 		}
@@ -442,7 +441,7 @@ func processSchedule(emailservice email.Service, notificationSettings []notifica
 		savedPrice := calculatePrice(previous.Vuelo, previous.Services)
 		// 2. Antes disponible y ahora diferente precio?
 		if price != savedPrice {
-			err := sendPriceChangedNotification(emailservice, notificationSettings, origin, destination, date, savedPrice, price)
+			err := sendPriceChangedNotification(notificationSettings, origin, destination, date, savedPrice, price)
 			if err != nil {
 				return err
 			}
@@ -452,7 +451,7 @@ func processSchedule(emailservice email.Service, notificationSettings []notifica
 	return nil
 }
 
-func processUnavailableSchedules(emailservice email.Service, notificationSettings []notifications.Setting, savedFlights flightsMap, actualFlights flightsMap) error {
+func processUnavailableSchedules(notificationSettings []notifications.Setting, savedFlights flightsMap, actualFlights flightsMap) error {
 	// 3. Antes disponible y ahora NO disponible?
 	for origin, originMap := range savedFlights {
 		for destination, destinationMap := range originMap {
@@ -464,7 +463,7 @@ func processUnavailableSchedules(emailservice email.Service, notificationSetting
 						// _ = os.Remove(flightpath)
 
 						savedPrice := calculatePrice(savedFlight.Vuelo, savedFlight.Services)
-						err := sendNotAvailableNotification(emailservice, notificationSettings, origin, destination, date, savedPrice)
+						err := sendNotAvailableNotification(notificationSettings, origin, destination, date, savedPrice)
 						if err != nil {
 							return err
 						}
@@ -555,7 +554,7 @@ func addFlightToMap(fmap flightsMap, origin, destination, date string, flight vu
 	fmap[origin][destination][date] = append(fmap[origin][destination][date], flight)
 }
 
-func processNotificationSettings(client *wingo.Client, emailservice email.Service, settings []notifications.Setting,
+func processNotificationSettings(client *wingo.Client, settings []notifications.Setting,
 	savedFlights flightsMap, startDate, stopDate time.Time) error {
 
 	type getFlightScheduleTask struct{ origin, destination string }
@@ -621,7 +620,7 @@ func processNotificationSettings(client *wingo.Client, emailservice email.Servic
 
 		date := date.Format(*fecha)
 		addFlightToMap(actualFlights, flightInf.Origin, flightInf.Destination, date, flight)
-		processSchedule(emailservice, settings, savedFlights, date, flightInf.Origin, flightInf.Destination, flight)
+		processSchedule(settings, savedFlights, date, flightInf.Origin, flightInf.Destination, flight)
 	}
 
 	// return processUnavailableSchedules(emailservice, settings, savedFlights, actualFlights)
@@ -657,16 +656,6 @@ func main() {
 		fmt.Println("Request Count:", client.RequestCount)
 	}()
 
-	emailservice, err := email.NewService(&email.Config{
-		Host:     "",
-		Port:     587,
-		Username: "",
-		Password: "",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	notificationSettings, err := notifications.LoadAllSettings()
 	if err != nil {
 		log.Fatal(err)
@@ -684,7 +673,7 @@ func main() {
 
 	if len(os.Args) >= 2 && os.Args[1] == "fast" {
 		fmt.Fprintln(os.Stderr, "Settings count:", len(notificationSettings))
-		processNotificationSettings(client, emailservice, notificationSettings, savedFlights, startDate, stopDate)
+		processNotificationSettings(client, notificationSettings, savedFlights, startDate, stopDate)
 		return
 	}
 
@@ -777,7 +766,7 @@ func main() {
 				fmt.Fprintln(os.Stderr, err)
 			}
 
-			err = processFlight(emailservice, notificationSettings, savedFlights, task.fecha, task.origin, task.destination, flight)
+			err = processFlight(notificationSettings, savedFlights, task.fecha, task.origin, task.destination, flight)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
@@ -806,7 +795,7 @@ func main() {
 	fmt.Println(" Finished saving flights archives ")
 	fmt.Println("----------------------------------")
 
-	err = processUnavailableFlights(emailservice, notificationSettings, savedFlights, actualFlights)
+	err = processUnavailableFlights(notificationSettings, savedFlights, actualFlights)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
