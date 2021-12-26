@@ -20,7 +20,7 @@ const bodyTpl = `<h1>Confirm your subscription</h1>
 <br>
 <p>Use the following link to confirm your subscription to receive notifications about price updates in the route {{.subscription.Origin}}-{{.subscription.Destination}} for {{.subscription.Date}}:
 <br>
-<a href="{{.baseURL}}/.netlify/functions/confirm_notification_setting?uid={{.uid}}">Confirm</a>
+<a href="{{.baseURL}}/.netlify/functions/confirm_subscription?uid={{.uid}}">Confirm</a>
 </p>
 <br>
 <p>If you did not request this subscription, please ignore this message.</p>
