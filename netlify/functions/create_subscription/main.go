@@ -46,11 +46,14 @@ func createSubscription(ctx context.Context, body []byte) error {
 		return err
 	}
 
-	email.SendMessage(`Please confirm your subscription`, bodyTpl, map[string]interface{}{
+	err = email.SendMessage(`Please confirm your subscription`, bodyTpl, map[string]interface{}{
 		"uid":          uid,
 		"baseURL":      baseURL,
 		"subscription": setting,
 	})
+	if err != nil {
+		return err
+	}
 
 	log.Println("Message sent")
 
