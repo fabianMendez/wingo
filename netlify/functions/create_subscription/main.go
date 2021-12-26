@@ -18,7 +18,7 @@ var baseURL = os.Getenv("URL")
 
 const bodyTpl = `<h1>Confirm your subscription</h1>
 <br>
-<p>Use the following link to confirm your subscription to receive notifications about price updates in the route {{.subscription.Origin}}-{{.subscription.Destination}} for {{.subscription.Date}}:
+<p>Use the following link to confirm your subscription to receive notifications about price updates in the route {{.subscription.Origin}} -> {{.subscription.Destination}} for {{.subscription.Date}}:
 <br>
 <a href="{{.baseURL}}/.netlify/functions/confirm_subscription?uid={{.uid}}">Confirm</a>
 </p>
