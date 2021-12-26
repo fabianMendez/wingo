@@ -24,10 +24,12 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (*event
 		}, nil
 	}
 
-	setting.Confirmed = true
-	err = notifications.UpdateSetting(uid, setting)
-	if err != nil {
-		return nil, err
+	if !setting.Confirmed {
+		setting.Confirmed = true
+		err = notifications.UpdateSetting(uid, setting)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &events.APIGatewayProxyResponse{
