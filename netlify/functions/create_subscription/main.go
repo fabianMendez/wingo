@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -46,13 +47,13 @@ func createSubscription(ctx context.Context, body []byte) error {
 		return err
 	}
 
-	err = email.SendMessage(`Please confirm your subscription`, bodyTpl, map[string]interface{}{
+	err = email.SendMessage(ctx, `Please confirm your subscription`, bodyTpl, map[string]interface{}{
 		"uid":          uid,
 		"baseURL":      baseURL,
 		"subscription": setting,
-	})
+	}, setting.Email)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not send message: %w", err)
 	}
 
 	log.Println("Message sent")

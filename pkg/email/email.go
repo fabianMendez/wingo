@@ -25,7 +25,7 @@ func BuildMessage(body string, data interface{}) (string, error) {
 	return buf.String(), nil
 }
 
-func SendMessage(subject, body string, data interface{}, to ...string) error {
+func SendMessage(ctx context.Context, subject, body string, data interface{}, to ...string) error {
 	mg, err := mailgun.NewMailgunFromEnv()
 	if err != nil {
 		return err
@@ -39,6 +39,6 @@ func SendMessage(subject, body string, data interface{}, to ...string) error {
 	msg := mg.NewMessage(os.Getenv("MG_FROM"), `Please confirm your subscription`, "", to...)
 	msg.SetHtml(html)
 
-	_, _, err = mg.Send(context.Background(), msg)
+	_, _, err = mg.Send(ctx, msg)
 	return err
 }
