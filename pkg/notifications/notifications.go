@@ -98,7 +98,7 @@ func SaveSetting(setting Setting) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	err = githubStorage.Write(fname, b, "add notification")
+	err = githubStorage.Write(fname, b, "add subscription")
 	if err != nil {
 		return "", fmt.Errorf("could not save setting: %w", err)
 	}
@@ -117,7 +117,7 @@ func UpdateSetting(uid string, setting Setting) error {
 	if err != nil {
 		return err
 	}
-	err = githubStorage.Write(fname, b, "update notification")
+	err = githubStorage.Write(fname, b, "update subscription")
 	if err != nil {
 		return fmt.Errorf("could not save setting: %w", err)
 	}
@@ -131,7 +131,7 @@ func DeleteSetting(uid string) error {
 	if err != nil {
 		return err
 	}
-	err = githubStorage.Delete(fname, "delete notification")
+	err = githubStorage.Delete(fname, "delete subscription")
 	if err != nil {
 		return fmt.Errorf("could not delete setting: %w", err)
 	}
