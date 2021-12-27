@@ -143,3 +143,8 @@ func (ss GithubStorage) Write(path string, b []byte, message string) error {
 
 	return nil
 }
+
+func (ss GithubStorage) Delete(path string, message string) error {
+	u := ss.url(path)
+	return ss.requestJSON(http.MethodDelete, u, nil, nil)
+}

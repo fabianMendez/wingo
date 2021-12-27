@@ -108,6 +108,16 @@ func UpdateSetting(uid string, setting Setting) error {
 	return nil
 }
 
+func DeleteSetting(uid string) error {
+	fname := filepath.Join(notificationsdir, uid+".json")
+	err := githubStorage.Delete(fname, "delete notification")
+	if err != nil {
+		return fmt.Errorf("could not delete setting: %w", err)
+	}
+
+	return nil
+}
+
 func GetSetting(uid string) (Setting, error) {
 	var setting Setting
 	fname := filepath.Join(notificationsdir, uid+".json")
