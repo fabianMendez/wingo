@@ -23,7 +23,7 @@ func TestWetag(t *testing.T) {
 	}{
 		{
 			name:     "routes",
-			path:     "/tmp/routes.json",
+			path:     "testdata/routes.json",
 			expected: `W/"2370-NeiDQizESMGkVpWJE/FiPtto0E8"`,
 		},
 	}
