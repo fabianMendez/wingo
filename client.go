@@ -2,7 +2,9 @@ package wingo
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -94,7 +96,7 @@ func (c *Client) request(method, u string, body io.Reader, headers map[string]st
 			return nil, fmt.Errorf("could not send request: %w", err)
 		}
 
-		if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotModified {
 			if i != maxRetries {
 				fmt.Fprintf(os.Stderr, "retry %d: %v\n", i, resp.StatusCode)
 				continue
@@ -116,6 +118,49 @@ func (c *Client) requestJSON(method, u string, body io.Reader, v interface{}, he
 	defer resp.Body.Close()
 
 	err = json.NewDecoder(resp.Body).Decode(v)
+	if err != nil {
+		return fmt.Errorf("could not decode response: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) requestJSONWithCache(method, u string, body io.Reader, v interface{}, path string, headers map[string]string) error {
+	content, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	if err == nil {
+		if headers == nil {
+			headers = make(map[string]string)
+		}
+		etag := wetag(content)
+		headers["If-None-Match"] = etag
+	}
+
+	resp, err := c.request(method, u, body, headers)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotModified {
+		err = json.Unmarshal(content, v)
+	} else {
+		var f *os.File
+		f, err = os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			_ = f.Close()
+		}()
+
+		r := io.TeeReader(resp.Body, f)
+		err = json.NewDecoder(r).Decode(v)
+	}
+
 	if err != nil {
 		return fmt.Errorf("could not decode response: %w", err)
 	}
@@ -250,6 +295,33 @@ func (c *Client) GetRoutes() ([]Route, error) {
 	}
 
 	err := c.requestJSON(http.MethodGet, u, nil, &response, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Response, nil
+}
+
+func wetag(buf []byte) string {
+	if len(buf) == 0 {
+		// fast-path empty body
+		return `W/"0-0"`
+	}
+
+	hashBuf := sha1.Sum(buf)
+	hash := base64.StdEncoding.EncodeToString(hashBuf[:])
+
+	return fmt.Sprintf(`W/"%x-%s"`, len(buf), hash[0:27])
+}
+
+func (c *Client) GetRoutesWithCache(path string) ([]Route, error) {
+	u := "https://routes-api.wingo.com/v1/completeroute/es"
+
+	var response struct {
+		Response []Route `json:"response"`
+	}
+
+	err := c.requestJSONWithCache(http.MethodGet, u, nil, &response, path, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -433,6 +433,14 @@ func sendRoutesPerDate(origin, destination string, startDate, stopDate time.Time
 	}
 }
 
+func loadRoutes(client *wingo.Client, path string) ([]wingo.Route, []wingo.Route, error) {
+	var savedRoutes []wingo.Route
+	_ = loadFromFile(path, &savedRoutes)
+
+	routes, err := client.GetRoutesWithCache(path)
+	return savedRoutes, routes, err
+}
+
 func main() {
 	starttime := time.Now()
 	defer func() {
@@ -441,7 +449,7 @@ func main() {
 
 	months, err := strconv.Atoi(os.Getenv("WINGO_MONTHS"))
 	if err != nil {
-		months = 1
+		months = 6
 	}
 
 	startMonths, err := strconv.Atoi(os.Getenv("WINGO_START_MONTHS"))
@@ -479,10 +487,13 @@ func main() {
 		fmt.Println("Running sub command")
 	}
 
-	var savedRoutes []wingo.Route
-	_ = loadFromFile("routes.json", &savedRoutes)
-
 	logger.Println("Cargando rutas guardadas")
+	savedRoutes, routes, err := loadRoutes(client, "routes.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	logger.Println("Cargando vuelos guardados")
 	savedFlights, err := loadSavedFlights(savedRoutes, startDate, stopDate)
 	if err != nil {
 		log.Fatal(err)
@@ -496,16 +507,7 @@ func main() {
 
 	logger.Println("Rutas guardadas:", len(savedRoutes))
 
-	routes, err := client.GetRoutes()
-	if err != nil {
-		log.Fatal(err)
-	}
 	fmt.Println("Routes from API:", len(routes))
-
-	err = saveToFile("routes.json", routes)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	var getPriceTasks []getPriceTask
 
