@@ -403,7 +403,7 @@ func processNotificationSettings(client *wingo.Client, settings []notifications.
 			continue
 		}
 
-		date := date.Format(*fecha)
+		date := date.Format(fecha)
 		addFlightToMap(actualFlights, flightInf.Origin, flightInf.Destination, date, flight)
 		processSchedule(settings, savedFlights, date, flightInf.Origin, flightInf.Destination, flight)
 	}
@@ -536,11 +536,11 @@ func main() {
 					d := date.MustParse(sub.Date)
 
 					if routeStartDate == nil || d.Before(*routeStartDate) {
-						routeStartDate = d
+						routeStartDate = &d
 					}
 
 					if routeStopDate == nil || d.After(*routeStopDate) {
-						routeStopDate = d
+						routeStopDate = &d
 					}
 				}
 

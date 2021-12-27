@@ -160,7 +160,7 @@ func FilterBetweenDates(subscriptions []Setting, start, end time.Time) []Setting
 		if err != nil {
 			continue
 		}
-		if (start.Before(*d) || start.Equal(*d)) && end.After(*d) {
+		if (start.Before(d) || start.Equal(d)) && end.After(d) {
 			filtered = append(filtered, sub)
 		}
 	}
