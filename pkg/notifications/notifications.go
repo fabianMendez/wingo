@@ -14,7 +14,14 @@ import (
 	"github.com/google/uuid"
 )
 
-const notificationsdir = "notifications"
+var dir = defaultIfEmpty(os.Getenv("GH_PATH"), "subscriptions")
+
+func defaultIfEmpty(str, def string) string {
+	if str == "" {
+		return def
+	}
+	return str
+}
 
 type Setting struct {
 	UID         string `json:"-"`
@@ -32,7 +39,7 @@ func BaseName(path string) string {
 }
 
 func LoadAllSettings() ([]Setting, error) {
-	fentries, err := os.ReadDir(notificationsdir)
+	fentries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -54,7 +61,7 @@ func LoadAllSettings() ([]Setting, error) {
 		go func(fentry fs.DirEntry) {
 			defer wg.Done()
 
-			fname := filepath.Join(notificationsdir, fentry.Name())
+			fname := filepath.Join(dir, fentry.Name())
 			f, err := os.Open(fname)
 			if err != nil {
 				return
@@ -86,7 +93,7 @@ func SaveSetting(setting Setting) (string, error) {
 		return "", err
 	}
 
-	fname := filepath.Join(notificationsdir, uid.String()+".json")
+	fname := filepath.Join(dir, uid.String()+".json")
 	githubStorage, err := storage.NewGithubFromEnv()
 	if err != nil {
 		return "", err
@@ -105,7 +112,7 @@ func UpdateSetting(uid string, setting Setting) error {
 		return err
 	}
 
-	fname := filepath.Join(notificationsdir, uid+".json")
+	fname := filepath.Join(dir, uid+".json")
 	githubStorage, err := storage.NewGithubFromEnv()
 	if err != nil {
 		return err
@@ -119,7 +126,7 @@ func UpdateSetting(uid string, setting Setting) error {
 }
 
 func DeleteSetting(uid string) error {
-	fname := filepath.Join(notificationsdir, uid+".json")
+	fname := filepath.Join(dir, uid+".json")
 	githubStorage, err := storage.NewGithubFromEnv()
 	if err != nil {
 		return err
@@ -134,7 +141,7 @@ func DeleteSetting(uid string) error {
 
 func GetSetting(uid string) (Setting, error) {
 	var setting Setting
-	fname := filepath.Join(notificationsdir, uid+".json")
+	fname := filepath.Join(dir, uid+".json")
 
 	githubStorage, err := storage.NewGithubFromEnv()
 	if err != nil {
