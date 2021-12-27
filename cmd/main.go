@@ -1,18 +1,16 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/fabianMendez/bits/syncbits"
 	"github.com/fabianMendez/wingo"
 	"github.com/fabianMendez/wingo/pkg/date"
 	"github.com/fabianMendez/wingo/pkg/notifications"
@@ -29,49 +27,15 @@ const (
 
 func formatMoney(n float64) string { return "$ " + humanize.FormatFloat("#,###.##", n) }
 
-func showFlightInformation(client *wingo.Client, notificationSettings []notifications.Setting, flightsInformation wingo.FlightsInformation, origin, destination string) error {
-	// fmt.Printf("%#v\n", flightsInformation)
-	// log.Println("Vuelos Ida:", len(flightsInformation.VueloIda))
-
-	fechaVuelos := filtrarVuelos(flightsInformation.VueloIda)
-	log.Println("Fechas:", len(fechaVuelos))
-
-	for fecha, vuelos := range fechaVuelos {
-		for _, vuelo := range vuelos {
-			log.Printf("buscando tarifas servicios del vuelo %s - %s\n", vuelo.FlightNumber, vuelo.DepartureDate)
-			serviceQuotes, err := client.RetrieveServiceQuotes([]wingo.FlightService{
-				{Departure: fecha, From: origin, To: destination, FlightID: vuelo.LogicalFlightID},
-			}, flightsInformation.Token)
-			if err != nil {
-				return err
-			}
-			log.Println("tarifas encontradas")
-
-			log.Println("calculando precio")
-			adminFares := wingo.GetAdminFares(serviceQuotes[0])
-			precio := wingo.GetBundlePrice(wingo.OriginalPlanName, vuelo, adminFares)
-
-			log.Println("Fecha:", vuelo.DepartureDate, "Precio:", formatMoney(precio))
-
-			err = sendNotifications(notificationSettings, origin, destination, fecha, precio)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
 func filtrarVuelos(vuelos []wingo.VueloIda) map[string][]wingo.Vuelo {
-	vuelosFiltrados := map[string][]wingo.Vuelo{}
+	filtrados := map[string][]wingo.Vuelo{}
 
 	for _, flight := range vuelos {
 		if len(flight.InfoVuelo.Vuelos) > 0 {
 			for _, vuelo := range flight.InfoVuelo.Vuelos {
 				price := wingo.GetBundlePrice(wingo.OriginalPlanName, vuelo, 0)
 				if price != 0 {
-					vuelosFiltrados[flight.Fecha] = append(vuelosFiltrados[flight.Fecha], vuelo)
+					filtrados[flight.Fecha] = append(filtrados[flight.Fecha], vuelo)
 					// log.Printf("buscando tarifas servicios del vuelo %s - %s\n", vuelo.FlightNumber, vuelo.DepartureDate)
 					// []wingo.FlightService{ {Departure: flight.Fecha, From: origin, To: destination, FlightID: vuelo.LogicalFlightID}, }, flightsInformation.Token
 				}
@@ -80,14 +44,7 @@ func filtrarVuelos(vuelos []wingo.VueloIda) map[string][]wingo.Vuelo {
 		}
 	}
 
-	return vuelosFiltrados
-}
-
-type getPriceTask struct {
-	fecha               string
-	token               string
-	origin, destination string
-	vuelo               wingo.Vuelo
+	return filtrados
 }
 
 func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, origin, destination, token string) ([]wingo.Service, error) {
@@ -107,34 +64,6 @@ func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, ori
 	// log.Printf("precio del vuelo %s-%s (%s - %s): %s\n", origin, destination, vuelo.FlightNumber, vuelo.DepartureDate, formatMoney(precio))
 
 	return serviceQuotes[0].Services, nil
-}
-
-func printFlightInformation(client *wingo.Client, flightsInformation wingo.FlightsInformation, origin, destination string) error {
-	// fmt.Printf("%#v\n", flightsInformation)
-	// log.Println("Vuelos Ida:", len(flightsInformation.VueloIda))
-
-	fechaVuelos := filtrarVuelos(flightsInformation.VueloIda)
-	log.Println("Fechas:", len(fechaVuelos))
-
-	for fecha, vuelos := range fechaVuelos {
-		for _, vuelo := range vuelos {
-			_, err := printInformation(client, fecha, vuelo, origin, destination, flightsInformation.Token)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func sendNotifications(notificationSettings []notifications.Setting, origin, destination, departureDate string, price float64) error {
-	subject := fmt.Sprintf("Precio del viaje %s-%s %s", origin, destination, departureDate)
-	body := fmt.Sprintf("El precio del viaje %s-%s para la fecha %s es: <b>%s</b>", origin, destination, departureDate, formatMoney(price))
-	wingoLink := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, departureDate)
-	body += fmt.Sprintf("<br>Link: %s", wingoLink)
-
-	return sendNotificationEmail(notificationSettings, origin, destination, departureDate, subject, body)
 }
 
 func getNotificationEmails(notificationSettings []notifications.Setting, origin, destination, date string) []string {
@@ -198,23 +127,6 @@ func sendNotAvailableNotification(notificationSettings []notifications.Setting, 
 	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, body)
 }
 
-func saveToFile(filename string, v interface{}) error {
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filename, b, os.ModePerm)
-}
-
-func loadFromFile(filename string, v interface{}) error {
-	f, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-
-	return json.NewDecoder(f).Decode(v)
-}
-
 func convertToTasks(flightsInformation wingo.FlightsInformation, origin, destination string) []getPriceTask {
 	var tasks []getPriceTask
 
@@ -234,113 +146,6 @@ func convertToTasks(flightsInformation wingo.FlightsInformation, origin, destina
 	return tasks
 }
 
-func workgroup(fn func(), count int) *sync.WaitGroup {
-	wg := sync.WaitGroup{}
-
-	for i := 0; i < count; i++ {
-		go func() {
-			defer wg.Done()
-			fn()
-		}()
-		wg.Add(1)
-	}
-
-	return &wg
-}
-
-type vueloArchivado struct {
-	wingo.Vuelo
-	Services []wingo.Service `json:"services"`
-}
-
-// origin -> destination -> date -> flights
-type flightsMap map[string]map[string]map[string][]vueloArchivado
-
-func loadSavedFlights(savedRoutes []wingo.Route, startDate, stopDate time.Time) (flightsMap, error) {
-	wg := new(sync.WaitGroup)
-	flightsMutex := new(sync.Mutex)
-	flights := flightsMap{}
-
-	for _, origin := range savedRoutes {
-		for _, destination := range origin.Routes {
-			dirname := filepath.Join(outdir, origin.Code, destination.Code)
-			direntries, err := os.ReadDir(dirname)
-			if err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				return nil, err
-			}
-
-			wg.Add(1)
-			go func(origin, destination string, direntries []fs.DirEntry) {
-				defer wg.Done()
-
-				for _, dentry := range direntries {
-					if !dentry.IsDir() {
-						continue
-					}
-
-					flightsMutex.Lock()
-					if flights[origin] == nil {
-						flights[origin] = map[string]map[string][]vueloArchivado{}
-					}
-
-					if flights[origin][destination] == nil {
-						flights[origin][destination] = map[string][]vueloArchivado{}
-					}
-					flightsMutex.Unlock()
-
-					datepath := filepath.Join(dirname, dentry.Name())
-					fentries, err := os.ReadDir(datepath)
-					if err != nil {
-						// return nil, err
-						continue
-					}
-
-					for _, fentry := range fentries {
-						var varchivado vueloArchivado
-
-						flightpath := filepath.Join(datepath, fentry.Name())
-						f, err := os.Open(flightpath)
-						if err != nil {
-							// return nil, err
-							continue
-						}
-						defer f.Close()
-
-						err = json.NewDecoder(f).Decode(&varchivado)
-						if err != nil {
-							// return nil, err
-							continue
-						}
-
-						datestr := dentry.Name()
-						date, err := date.Parse(datestr)
-						if err != nil {
-							continue
-						}
-
-						if date.Before(startDate) || date.After(stopDate) {
-							continue
-						}
-
-						flightsMutex.Lock()
-						flights[origin][destination][datestr] = append(
-							flights[origin][destination][datestr],
-							varchivado,
-						)
-						flightsMutex.Unlock()
-					}
-				}
-			}(origin.Code, destination.Code, direntries)
-		}
-	}
-	wg.Wait()
-
-	return flights, nil
-}
-
 func calculatePrice(vuelo wingo.Vuelo, services []wingo.Service) float64 {
 	adminFares := wingo.GetAdminFares(wingo.ServiceQuote{
 		Services: services,
@@ -350,26 +155,14 @@ func calculatePrice(vuelo wingo.Vuelo, services []wingo.Service) float64 {
 }
 
 func findFlight(savedFlights flightsMap, origin, destination, date, flightNumber string) (vueloArchivado, bool) {
-	for savedOrigin, originMap := range savedFlights {
-		if origin != savedOrigin {
+	for savedDate, flights := range savedFlights[origin][destination] {
+		if savedDate != date {
 			continue
 		}
 
-		for savedDestination, destinationMap := range originMap {
-			if destination != savedDestination {
-				continue
-			}
-
-			for savedDate, savedFlights := range destinationMap {
-				if savedDate != date {
-					continue
-				}
-
-				for _, savedFlight := range savedFlights {
-					if savedFlight.FlightNumber == flightNumber {
-						return savedFlight, true
-					}
-				}
+		for _, flight := range flights {
+			if flight.FlightNumber == flightNumber {
+				return flight, true
 			}
 		}
 	}
@@ -426,6 +219,35 @@ func processUnavailableFlights(notificationSettings []notifications.Setting, sav
 	return nil
 }
 
+func processUnavailableFlightsForSubs(subs []notifications.Setting, savedFlights flightsMap, actualFlights flightsMap) error {
+	subsByRoute := notifications.GroupByRoute(subs)
+
+	// 3. Antes disponible y ahora NO disponible?
+	for origin, originSubs := range subsByRoute {
+		for destination, destinationSubs := range originSubs {
+			for _, sub := range destinationSubs {
+				date := sub.Date
+				savedFlights := savedFlights[origin][destination][date]
+				for _, savedFlight := range savedFlights {
+					_, actualFound := findFlight(actualFlights, origin, destination, date, savedFlight.FlightNumber)
+					if !actualFound {
+						flightpath := filepath.Join(outdir, origin, destination, date, savedFlight.FlightNumber+".json")
+						_ = os.Remove(flightpath)
+
+						savedPrice := calculatePrice(savedFlight.Vuelo, savedFlight.Services)
+						err := sendNotAvailableNotification(subs, origin, destination, date, savedPrice)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func processSchedule(notificationSettings []notifications.Setting,
 	savedFlights flightsMap, date, origin, destination string, flight vueloArchivado) error {
 	previous, previousFound := findFlight(savedFlights, origin, destination, date, flight.FlightNumber)
@@ -451,38 +273,6 @@ func processSchedule(notificationSettings []notifications.Setting,
 	return nil
 }
 
-func processUnavailableSchedules(notificationSettings []notifications.Setting, savedFlights flightsMap, actualFlights flightsMap) error {
-	// 3. Antes disponible y ahora NO disponible?
-	for origin, originMap := range savedFlights {
-		for destination, destinationMap := range originMap {
-			for date, savedFlights := range destinationMap {
-				for _, savedFlight := range savedFlights {
-					_, actualFound := findFlight(actualFlights, origin, destination, date, savedFlight.FlightNumber)
-					if !actualFound {
-						// flightpath := filepath.Join(outdir, origin, destination, date, savedFlight.FlightNumber+".json")
-						// _ = os.Remove(flightpath)
-
-						savedPrice := calculatePrice(savedFlight.Vuelo, savedFlight.Services)
-						err := sendNotAvailableNotification(notificationSettings, origin, destination, date, savedPrice)
-						if err != nil {
-							return err
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-type archiveTask struct {
-	fecha               string
-	vuelo               wingo.Vuelo
-	origin, destination string
-	services            []wingo.Service
-}
-
 func retrieveServices(client *wingo.Client, getPriceTaskChan chan getPriceTask, archiveTasksChan chan<- archiveTask) {
 	for task := range getPriceTaskChan {
 		services, err := printInformation(client, task.fecha, task.vuelo, task.origin, task.destination, task.token)
@@ -502,9 +292,10 @@ func retrieveServices(client *wingo.Client, getPriceTaskChan chan getPriceTask, 
 }
 
 func getInformationFlightsMonthly(client *wingo.Client, origin, destination string, startDate, endDate time.Time) []getPriceTask {
+	// fmt.Println(startDate, endDate, endDate.Sub(startDate).Hours())
 	daysAfter := int(endDate.Sub(startDate).Hours() / 24)
-	fmt.Printf("Start date %s-%s: %s", origin, destination, date.Format(startDate))
-	fmt.Printf("Days %s-%s: %d\n", origin, destination, daysAfter)
+	// fmt.Printf("Start date %s-%s: %s", origin, destination, date.Format(startDate))
+	// fmt.Printf(" | Days %s-%s: %d\n", origin, destination, daysAfter)
 	flightsInformation, err := client.GetInformationFlightsMonthly(origin, destination, date.Format(startDate), daysAfter)
 	if err != nil {
 		log.Fatal(err)
@@ -554,18 +345,26 @@ func addFlightToMap(fmap flightsMap, origin, destination, date string, flight vu
 	fmap[origin][destination][date] = append(fmap[origin][destination][date], flight)
 }
 
+func containsString(elms []string, s string) bool {
+	for _, elm := range elms {
+		if elm == s {
+			return true
+		}
+	}
+	return false
+}
+
 func processNotificationSettings(client *wingo.Client, settings []notifications.Setting,
 	savedFlights flightsMap, startDate, stopDate time.Time) error {
 
 	type getFlightScheduleTask struct{ origin, destination string }
 	getFlightsScheduleTasksChan := make(chan getFlightScheduleTask, maxWorkers)
 
-	flightsInformation := []wingo.FlightInformation{}
+	var flightsInformation []wingo.FlightInformation
 
-	wg := workgroup(func() {
+	wg := syncbits.Workgroup(func() {
 		for t := range getFlightsScheduleTasksChan {
-			information, err := client.GetFlightScheduleInformation(t.origin, t.destination,
-				date.Format(startDate), date.Format(stopDate))
+			information, err := client.GetFlightScheduleInformation(t.origin, t.destination, date.Format(startDate), date.Format(stopDate))
 			if err != nil {
 				log.Println(err)
 				continue
@@ -581,17 +380,8 @@ func processNotificationSettings(client *wingo.Client, settings []notifications.
 			routes[setting.Origin] = []string{}
 		}
 
-		found := false
-		for _, val := range routes[setting.Origin] {
-			if val == setting.Destination {
-				found = true
-				break
-			}
-		}
-
-		if !found {
+		if !containsString(routes[setting.Origin], setting.Destination) {
 			routes[setting.Origin] = append(routes[setting.Origin], setting.Destination)
-			// routes[setting.Origin] = []string{setting.Destination}
 		}
 	}
 
@@ -627,6 +417,27 @@ func processNotificationSettings(client *wingo.Client, settings []notifications.
 	return nil
 }
 
+type getInformationFlightsTask struct {
+	origin, destination string
+	startDate, endDate  time.Time
+}
+
+func sendRoutesPerDate(origin, destination string, startDate, stopDate time.Time, getInformationFlightsChan chan<- getInformationFlightsTask) {
+	for startDate.Before(stopDate) || startDate.Equal(stopDate) {
+		endDate := startDate.AddDate(0, 1, 0)
+		if endDate.After(stopDate) {
+			endDate = stopDate.AddDate(0, 0, 1)
+		}
+		getInformationFlightsChan <- getInformationFlightsTask{
+			origin:      origin,
+			destination: destination,
+			startDate:   startDate,
+			endDate:     endDate,
+		}
+		startDate = endDate
+	}
+}
+
 func main() {
 	starttime := time.Now()
 	defer func() {
@@ -656,11 +467,22 @@ func main() {
 		fmt.Println("Request Count:", client.RequestCount)
 	}()
 
-	notificationSettings, err := notifications.LoadAllSettings()
+	subs, err := notifications.LoadAllSettings()
 	if err != nil {
 		log.Fatal(err)
 	}
-	notificationSettings = notifications.FilterConfirmed(notificationSettings)
+	subs = notifications.FilterConfirmed(subs)
+	subs = notifications.FilterBetweenDates(subs, startDate, stopDate)
+	if len(subs) == 0 {
+		fmt.Println("we just got nothing to do")
+		return
+	}
+
+	fast := len(os.Args) >= 2 && os.Args[1] == "fast"
+	runSubs := len(os.Args) < 2 || (len(os.Args) >= 2 && os.Args[1] == "subs")
+	if runSubs {
+		fmt.Println("Running sub command")
+	}
 
 	var savedRoutes []wingo.Route
 	_ = loadFromFile("routes.json", &savedRoutes)
@@ -671,9 +493,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if len(os.Args) >= 2 && os.Args[1] == "fast" {
-		fmt.Fprintln(os.Stderr, "Settings count:", len(notificationSettings))
-		processNotificationSettings(client, notificationSettings, savedFlights, startDate, stopDate)
+	if fast {
+		fmt.Fprintln(os.Stderr, "Settings count:", len(subs))
+		processNotificationSettings(client, subs, savedFlights, startDate, stopDate)
 		return
 	}
 
@@ -683,6 +505,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println("Routes from API:", len(routes))
 
 	err = saveToFile("routes.json", routes)
 	if err != nil {
@@ -691,14 +514,10 @@ func main() {
 
 	var getPriceTasks []getPriceTask
 
-	// wg := sync.WaitGroup{}
-	type getInformationFlightsTask struct {
-		origin, destination string
-		startDate, endDate  time.Time
-	}
+	routesCount := 0
 	getInformationFlightsChan := make(chan getInformationFlightsTask, maxWorkers)
 
-	wg := workgroup(func() {
+	wg := syncbits.Workgroup(func() {
 		for t := range getInformationFlightsChan {
 			tasks := getInformationFlightsMonthly(client, t.origin, t.destination, t.startDate, t.endDate)
 			for _, t2 := range tasks {
@@ -710,42 +529,57 @@ func main() {
 		}
 	}, maxWorkers)
 
-	fmt.Println("Routes from api:", len(routes))
-	count := 0
-	for _, origin := range routes {
-		for _, destination := range origin.Routes {
-			fmt.Println(origin.Name, "=>", destination.Name)
-			count++
+	if runSubs {
+		subsByRoute := notifications.GroupByRoute(subs)
 
-			func(startDate time.Time) {
-				for startDate.Before(stopDate) {
-					endDate := startDate.AddDate(0, 1, 0)
-					getInformationFlightsChan <- getInformationFlightsTask{
-						origin:      origin.Code,
-						destination: destination.Code,
-						startDate:   startDate,
-						endDate:     endDate,
+		for origin, originSubs := range subsByRoute {
+			for destination, subs := range originSubs {
+				var routeStartDate, routeStopDate *time.Time
+				for _, sub := range subs {
+					d := date.MustParse(sub.Date)
+
+					if routeStartDate == nil || d.Before(*routeStartDate) {
+						routeStartDate = d
 					}
-					startDate = endDate
+
+					if routeStopDate == nil || d.After(*routeStopDate) {
+						routeStopDate = d
+					}
 				}
-			}(startDate)
+
+				if routeStartDate != nil && routeStopDate != nil {
+					fmt.Println(origin, "=>", destination)
+					routesCount++
+					sendRoutesPerDate(origin, destination, *routeStartDate, *routeStopDate, getInformationFlightsChan)
+				} else {
+					fmt.Println("both dates are nil - should not happen")
+				}
+			}
+		}
+	} else {
+		for _, origin := range routes {
+			for _, destination := range origin.Routes {
+				fmt.Println(origin.Name, "=>", destination.Name)
+				routesCount++
+				sendRoutesPerDate(origin.Code, destination.Code, startDate, stopDate, getInformationFlightsChan)
+			}
 		}
 	}
 	close(getInformationFlightsChan)
 
 	fmt.Println("--------------------------------------")
-	fmt.Println("Waiting to load", count, "flights information")
+	fmt.Println("Waiting to load", routesCount, "routes information")
 	fmt.Println("--------------------------------------")
 	wg.Wait()
 
 	fmt.Println("------------------------------------")
-	fmt.Println("Finished loading flights information")
+	fmt.Println("Finished loading routes information")
 	fmt.Println("------------------------------------")
 
 	actualFlights := flightsMap{}
 	actualFlightsMutex := new(sync.Mutex)
 	archiveTaskChan := make(chan archiveTask, maxWorkers)
-	wgArchive := workgroup(func() {
+	wgArchive := syncbits.Workgroup(func() {
 		for task := range archiveTaskChan {
 			flight := vueloArchivado{
 				Vuelo:    task.vuelo,
@@ -766,7 +600,7 @@ func main() {
 				fmt.Fprintln(os.Stderr, err)
 			}
 
-			err = processFlight(notificationSettings, savedFlights, task.fecha, task.origin, task.destination, flight)
+			err = processFlight(subs, savedFlights, task.fecha, task.origin, task.destination, flight)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
@@ -774,7 +608,7 @@ func main() {
 	}, maxWorkers)
 
 	getPriceTaskChan := make(chan getPriceTask, maxWorkers)
-	threadsG := workgroup(func() {
+	threadsG := syncbits.Workgroup(func() {
 		retrieveServices(client, getPriceTaskChan, archiveTaskChan)
 	}, maxWorkers)
 
@@ -795,7 +629,11 @@ func main() {
 	fmt.Println(" Finished saving flights archives ")
 	fmt.Println("----------------------------------")
 
-	err = processUnavailableFlights(notificationSettings, savedFlights, actualFlights)
+	if runSubs {
+		err = processUnavailableFlightsForSubs(subs, savedFlights, actualFlights)
+	} else {
+		err = processUnavailableFlights(subs, savedFlights, actualFlights)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
