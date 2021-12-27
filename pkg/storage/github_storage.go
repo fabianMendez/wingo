@@ -146,5 +146,21 @@ func (ss GithubStorage) Write(path string, b []byte, message string) error {
 
 func (ss GithubStorage) Delete(path string, message string) error {
 	u := ss.url(path)
-	return ss.requestJSON(http.MethodDelete, u, nil, nil)
+	sha := ss.getSHA(path)
+
+	var request = struct {
+		Message string `json:"message"`
+		SHA     string `json:"sha"`
+	}{
+		Message: message,
+		SHA:     sha,
+	}
+
+	buf := &bytes.Buffer{}
+	err := json.NewEncoder(buf).Encode(request)
+	if err != nil {
+		return err
+	}
+
+	return ss.requestJSON(http.MethodDelete, u, buf, nil)
 }
