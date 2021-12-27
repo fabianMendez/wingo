@@ -26,6 +26,10 @@ func BuildMessage(body string, data interface{}) (string, error) {
 }
 
 func SendMessage(ctx context.Context, subject, body string, data interface{}, to ...string) error {
+	return SendMessageWithText(ctx, subject, "", body, data, to...)
+}
+
+func SendMessageWithText(ctx context.Context, subject, text, body string, data interface{}, to ...string) error {
 	mg, err := mailgun.NewMailgunFromEnv()
 	if err != nil {
 		return err
@@ -36,7 +40,7 @@ func SendMessage(ctx context.Context, subject, body string, data interface{}, to
 		return err
 	}
 
-	msg := mg.NewMessage(os.Getenv("MG_FROM"), subject, "", to...)
+	msg := mg.NewMessage(os.Getenv("MG_FROM"), subject, text, to...)
 	msg.SetHtml(html)
 
 	_, _, err = mg.Send(ctx, msg)

@@ -28,7 +28,7 @@ const (
 	maxWorkers = 10
 )
 
-func formatMoney(n float64) string { return "$ " + humanize.FormatFloat("#,###.##", n) }
+func formatMoney(n float64) string { return "$" + humanize.FormatFloat("#,###.##", n) }
 
 func filtrarVuelos(vuelos []wingo.VueloIda) map[string][]wingo.Vuelo {
 	filtrados := map[string][]wingo.Vuelo{}
@@ -69,16 +69,22 @@ func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, ori
 	return serviceQuotes[0].Services, nil
 }
 
-func sendNotificationEmail(notificationSettings []notifications.Setting, origin, destination, date string, subject, body string) error {
+func sendNotificationEmail(notificationSettings []notifications.Setting, origin, destination, date string, message, body string) error {
 	subs := notifications.GroupByRoute(notificationSettings)[origin][destination]
+	heading := fmt.Sprintf("✈️ %s-%s/%s", origin, destination, date)
+
+	link := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, date)
 
 	for _, sub := range subs {
-		subbody := body + fmt.Sprintf(`<br>Para cancelar la suscripción, <a href="%s/.netlify/functions/cancel_subscription?uid=%s">haz clic aquí</a>`,
-			os.Getenv("BASE_URL"), sub.UID)
+		cancelSubscriptionLink := fmt.Sprintf("%s/.netlify/functions/cancel_subscription?uid=%s", os.Getenv("BASE_URL"), sub.UID)
 
-		fmt.Println("["+sub.Email+"]:", subject)
-		fmt.Println(subbody)
-		err := email.SendMessage(context.Background(), subject, subbody, nil, sub.Email)
+		fmt.Println("["+sub.Email+"]:", heading, message)
+		data := map[string]interface{}{
+			"Message":                message,
+			"Link":                   link,
+			"CancelSubscriptionLink": cancelSubscriptionLink,
+		}
+		err := email.SendMessageWithText(context.Background(), heading, message, email.TplPriceChange, data, strings.Split(sub.Email, ",")...)
 		if err != nil {
 			return err
 		}
@@ -88,38 +94,27 @@ func sendNotificationEmail(notificationSettings []notifications.Setting, origin,
 }
 
 func sendNewFlightNotification(notificationSettings []notifications.Setting, origin, destination, date string, price float64) error {
-	subject := fmt.Sprintf("Precio del viaje %s-%s %s", origin, destination, date)
-	body := fmt.Sprintf("El precio del viaje %s-%s para la fecha %s es: <b>%s</b>", origin, destination, date, formatMoney(price))
-	wingoLink := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, date)
-	body += fmt.Sprintf("<br>Link: %s", wingoLink)
+	subject := fmt.Sprintf("Precio actual: %s.", formatMoney(price))
 
-	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, body)
+	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, "")
 }
 
 func sendPriceChangedNotification(notificationSettings []notifications.Setting, origin, destination, date string, oldPrice, newPrice float64) error {
+	emoji := "↗️"
 	accion := "SUBIÓ"
 	if oldPrice > newPrice {
+		emoji = "↘️"
 		accion = "BAJÓ"
 	}
 
-	subject := fmt.Sprintf("%s precio del vuelo %s-%s %s", accion, origin, destination, date)
-	body := fmt.Sprintf("El precio del vuelo %s-%s para la fecha %s %s desde <b>%s</b> a <b>%s</b>",
-		origin, destination, date, accion, formatMoney(oldPrice), formatMoney(newPrice))
+	subject := fmt.Sprintf("%s El precio %s a %s (desde %s).", emoji, accion, formatMoney(oldPrice), formatMoney(newPrice))
 
-	wingoLink := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, date)
-	body += fmt.Sprintf("<br>Link: %s", wingoLink)
-
-	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, body)
+	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, "")
 }
 
 func sendNotAvailableNotification(notificationSettings []notifications.Setting, origin, destination, date string, lastPrice float64) error {
-	subject := fmt.Sprintf("El vuelo %s-%s %s ya NO está disponible", origin, destination, date)
-	body := fmt.Sprintf("El vuelo %s-%s %s ya NO está disponible", origin, destination, date)
-
-	wingoLink := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, date)
-	body += fmt.Sprintf("<br>Link: %s", wingoLink)
-
-	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, body)
+	subject := "El vuelo ya NO está disponible."
+	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, "")
 }
 
 func convertToTasks(flightsInformation wingo.FlightsInformation, origin, destination string) []getPriceTask {
