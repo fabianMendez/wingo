@@ -25,7 +25,7 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (*event
 		Headers: map[string]string{
 			"Content-Type": "text/html",
 		},
-		Body: "<h1>Subscription has been cancelled</h1>",
+		Body: "<h1>La suscripción ha sido cancelada</h1>",
 	}, nil
 }
 

@@ -20,7 +20,7 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (*event
 			Headers: map[string]string{
 				"Content-Type": "text/html",
 			},
-			Body: "<h1>Subscription not found</h1>",
+			Body: "<h1>Suscripción no encontrada</h1>",
 		}, nil
 	}
 
@@ -37,7 +37,7 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (*event
 		Headers: map[string]string{
 			"Content-Type": "text/html",
 		},
-		Body: "<h1>Subscription has been confirmed</h1>",
+		Body: "<h1>La suscripción ha sido confirmada</h1>",
 	}, nil
 }
 

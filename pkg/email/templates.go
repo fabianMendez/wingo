@@ -159,6 +159,51 @@ const TplConfirmSubscription = TplPreffix + `
 <tbody>
   <tr>
     <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+      <div style="font-family:Helvetica;font-size:26px;font-weight:bolder;line-height:1;text-align:left;color:#111827;">Confirma tu suscripción</div>
+    </td>
+  </tr>
+  <tr>
+    <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+      <div style="font-family:Helvetica;font-size:18px;line-height:1;text-align:left;color:#4B5563;">
+      Usa el siguiente link para confirmar tu suscripción para recibir notificaciones sobre actualizaciones del precio de la ruta {{.subscription.Origin}} -> {{.subscription.Destination}} el {{.subscription.Date}}:
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" vertical-align="middle" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:separate;line-height:100%;">
+        <tr>
+          <td align="center" bgcolor="#14B8A6" role="presentation" style="border:none;border-radius:3px;cursor:auto;mso-padding-alt:10px 25px;background:#14B8A6;" valign="middle">
+            <a href="{{.link}}" style="display:inline-block;background:#14B8A6;color:#ffffff;font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:13px;font-weight:bold;line-height:120%;margin:0;text-decoration:none;text-transform:none;padding:10px 25px;mso-padding-alt:0px;border-radius:3px;" target="_blank">
+            Confirmar
+            </a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+      <p style="border-top:dashed 1px lightgrey;font-size:1px;margin:0px auto;width:100%;">
+      </p>
+      <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" style="border-top:dashed 1px lightgrey;font-size:1px;margin:0px auto;width:550px;" role="presentation" width="550px" ><tr><td style="height:0;line-height:0;"> &nbsp;
+</td></tr></table><![endif]-->
+    </td>
+  </tr>
+  <tr>
+    <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+      <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:13px;line-height:1;text-align:left;color:#4B5563;">
+        Si no solicitaste esta suscripción, por favor ignora este mensaje.
+      </div>
+    </td>
+  </tr>
+</tbody>
+` + TplSuffix
+
+const TplConfirmSubscriptionEn = TplPreffix + `
+<tbody>
+  <tr>
+    <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
       <div style="font-family:Helvetica;font-size:26px;font-weight:bolder;line-height:1;text-align:left;color:#111827;">Confirm your subscription</div>
     </td>
   </tr>

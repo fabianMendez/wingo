@@ -38,7 +38,8 @@ func createSubscription(ctx context.Context, body []byte) error {
 	}
 
 	link := baseURL + "/.netlify/functions/confirm_subscription?uid=" + uid
-	err = email.SendMessage(ctx, `Please confirm your subscription`, email.TplConfirmSubscription, map[string]interface{}{
+	// `Please confirm your subscription`
+	err = email.SendMessage(ctx, `Por favor confirma tu suscripción`, email.TplConfirmSubscription, map[string]interface{}{
 		"subscription": setting,
 		"link":         link,
 	}, setting.Email)
