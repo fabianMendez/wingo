@@ -1,11 +1,12 @@
-.PHONY all: build functions
+.PHONY all: run functions
 
-all: build functions
+all: run functions
 
-build:
-	go build -o main cmd/main.go
+run:
+	mkdir -p build
+	go build -o build/run cmd/*.go
 
 functions:
-	go build -o netlify/functions/create_subscription netlify/functions/create_subscription/main.go
-	go build -o netlify/functions/confirm_subscription netlify/functions/confirm_subscription/main.go
-	go build -o netlify/functions/get_routes netlify/functions/get_routes/main.go
+	mkdir -p build/functions
+	go build -o build/functions/create_subscription netlify/functions/create_subscription/main.go
+	go build -o build/functions/confirm_subscription netlify/functions/confirm_subscription/main.go
