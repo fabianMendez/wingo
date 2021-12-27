@@ -243,6 +243,7 @@ func processSchedule(notificationSettings []notifications.Setting,
 	previous, previousFound := findFlight(savedFlights, origin, destination, date, flight.FlightNumber)
 
 	price := calculatePrice(flight.Vuelo, flight.Services)
+	fmt.Println(price)
 	// 1. Antes NO disponible y ahora disponible?
 	if !previousFound {
 		err := sendNewFlightNotification(notificationSettings, origin, destination, date, price)
