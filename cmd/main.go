@@ -434,11 +434,16 @@ func sendRoutesPerDate(origin, destination string, startDate, stopDate time.Time
 }
 
 func loadRoutes(client *wingo.Client, path string) ([]wingo.Route, []wingo.Route, error) {
-	var savedRoutes []wingo.Route
-	_ = loadFromFile(path, &savedRoutes)
+	var savedRoutes struct {
+		Response []wingo.Route `json:"response"`
+	}
+	err := loadFromFile(path, &savedRoutes)
+	if err != nil {
+		log.Println(err)
+	}
 
 	routes, err := client.GetRoutesWithCache(path)
-	return savedRoutes, routes, err
+	return savedRoutes.Response, routes, err
 }
 
 func main() {
@@ -506,8 +511,11 @@ func main() {
 	}
 
 	logger.Println("Rutas guardadas:", len(savedRoutes))
-
-	fmt.Println("Routes from API:", len(routes))
+	logger.Println("Routes from API:", len(routes))
+	logger.Println("Vuelos guardados:", len(savedFlights))
+	if len(savedRoutes) == 0 {
+		return
+	}
 
 	var getPriceTasks []getPriceTask
 
