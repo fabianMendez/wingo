@@ -38,3 +38,11 @@ func Parse(s string) (*time.Time, error) {
 	return &t, nil
 
 }
+
+func MustParse(s string) *time.Time {
+	t, err := Parse(s)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
