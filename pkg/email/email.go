@@ -36,7 +36,7 @@ func SendMessage(ctx context.Context, subject, body string, data interface{}, to
 		return err
 	}
 
-	msg := mg.NewMessage(os.Getenv("MG_FROM"), `Please confirm your subscription`, "", to...)
+	msg := mg.NewMessage(os.Getenv("MG_FROM"), subject, "", to...)
 	msg.SetHtml(html)
 
 	_, _, err = mg.Send(ctx, msg)

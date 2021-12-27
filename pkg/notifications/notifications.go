@@ -17,11 +17,18 @@ import (
 const notificationsdir = "notifications"
 
 type Setting struct {
+	UID         string `json:"-"`
 	Origin      string `json:"origin"`
 	Destination string `json:"destination"`
 	Date        string `json:"date"`
 	Email       string `json:"email"`
 	Confirmed   bool   `json:"confirmed"`
+}
+
+func BaseName(path string) string {
+	base := filepath.Base(path)
+	ext := filepath.Ext(base)
+	return base[:len(base)-len(ext)]
 }
 
 func LoadAllSettings() ([]Setting, error) {
@@ -60,6 +67,7 @@ func LoadAllSettings() ([]Setting, error) {
 				fmt.Fprintln(os.Stderr, err)
 				return
 			}
+			setting.UID = BaseName(fname)
 
 			settingsMutex.Lock()
 			settings = append(settings, setting)

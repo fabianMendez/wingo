@@ -81,3 +81,24 @@ func TestFilterBetweenDates(t *testing.T) {
 		})
 	}
 }
+
+func TestBaseName(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected string
+	}{
+		{
+			name:     "subscription uid",
+			path:     "./subscriptions/abcdef.json",
+			expected: "abcdef",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := notifications.BaseName(tt.path)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}

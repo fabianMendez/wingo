@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/fabianMendez/bits/syncbits"
 	"github.com/fabianMendez/wingo"
 	"github.com/fabianMendez/wingo/pkg/date"
+	"github.com/fabianMendez/wingo/pkg/email"
 	"github.com/fabianMendez/wingo/pkg/notifications"
 )
 
@@ -67,27 +69,19 @@ func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, ori
 	return serviceQuotes[0].Services, nil
 }
 
-func getNotificationEmails(notificationSettings []notifications.Setting, origin, destination, date string) []string {
-	var emails []string
-	for _, setting := range notificationSettings {
-		if origin == setting.Origin && destination == setting.Destination && date == setting.Date {
-			emails = append(emails, setting.Email)
-		}
-	}
-	return emails
-}
-
 func sendNotificationEmail(notificationSettings []notifications.Setting, origin, destination, date string, subject, body string) error {
-	fmt.Println("===", subject, "===")
-	fmt.Println(body)
+	subs := notifications.GroupByRoute(notificationSettings)[origin][destination]
 
-	emails := getNotificationEmails(notificationSettings, origin, destination, date)
-	for _, email := range emails {
-		fmt.Println("["+email+"]:", subject)
-		// err := emailservice.Send(subject, body, nil, email)
-		// if err != nil {
-		// 	return err
-		// }
+	for _, sub := range subs {
+		subbody := body + fmt.Sprintf(`<br>Para cancelar la suscripción, <a href="%s/.netlify/functions/cancel_subscription?uid=%s">haz clic aquí</a>`,
+			os.Getenv("BASE_URL"), sub.UID)
+
+		fmt.Println("["+sub.Email+"]:", subject)
+		fmt.Println(subbody)
+		err := email.SendMessage(context.Background(), subject, subbody, nil, sub.Email)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
