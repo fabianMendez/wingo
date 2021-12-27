@@ -79,12 +79,6 @@ func LoadAllSettings() ([]Setting, error) {
 	return settings, nil
 }
 
-var githubStorage = storage.GithubStorage{
-	Token: "ghtoken",
-	Owner: "fabianMendez",
-	Repo:  "wingo",
-}
-
 func SaveSetting(setting Setting) (string, error) {
 	uid := uuid.New()
 	b, err := json.Marshal(setting)
@@ -93,6 +87,10 @@ func SaveSetting(setting Setting) (string, error) {
 	}
 
 	fname := filepath.Join(notificationsdir, uid.String()+".json")
+	githubStorage, err := storage.NewGithubFromEnv()
+	if err != nil {
+		return "", err
+	}
 	err = githubStorage.Write(fname, b, "add notification")
 	if err != nil {
 		return "", fmt.Errorf("could not save setting: %w", err)
@@ -108,6 +106,10 @@ func UpdateSetting(uid string, setting Setting) error {
 	}
 
 	fname := filepath.Join(notificationsdir, uid+".json")
+	githubStorage, err := storage.NewGithubFromEnv()
+	if err != nil {
+		return err
+	}
 	err = githubStorage.Write(fname, b, "update notification")
 	if err != nil {
 		return fmt.Errorf("could not save setting: %w", err)
@@ -118,7 +120,11 @@ func UpdateSetting(uid string, setting Setting) error {
 
 func DeleteSetting(uid string) error {
 	fname := filepath.Join(notificationsdir, uid+".json")
-	err := githubStorage.Delete(fname, "delete notification")
+	githubStorage, err := storage.NewGithubFromEnv()
+	if err != nil {
+		return err
+	}
+	err = githubStorage.Delete(fname, "delete notification")
 	if err != nil {
 		return fmt.Errorf("could not delete setting: %w", err)
 	}
@@ -129,6 +135,11 @@ func DeleteSetting(uid string) error {
 func GetSetting(uid string) (Setting, error) {
 	var setting Setting
 	fname := filepath.Join(notificationsdir, uid+".json")
+
+	githubStorage, err := storage.NewGithubFromEnv()
+	if err != nil {
+		return setting, err
+	}
 
 	content, err := githubStorage.Read(fname)
 	if err != nil {

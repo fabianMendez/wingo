@@ -7,12 +7,41 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 )
 
 type GithubStorage struct {
 	Token string
 	Owner string
 	Repo  string
+}
+
+func NewGithubFromEnv() (storage GithubStorage, err error) {
+	token := os.Getenv("GH_TOKEN")
+	owner := os.Getenv("GH_OWNER")
+	repo := os.Getenv("GH_REPO")
+
+	if token == "" {
+		err = fmt.Errorf("required environment variable GH_TOKEN not defined")
+		return
+	}
+
+	if owner == "" {
+		err = fmt.Errorf("required environment variable GH_OWNER not defined")
+		return
+	}
+
+	if repo == "" {
+		err = fmt.Errorf("required environment variable GH_REPO not defined")
+		return
+	}
+
+	storage = GithubStorage{
+		Token: token,
+		Owner: owner,
+		Repo:  repo,
+	}
+	return
 }
 
 func (ss GithubStorage) request(method, u string, body io.Reader, headers map[string]string) (*http.Response, error) {
