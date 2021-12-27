@@ -16,16 +16,6 @@ import (
 
 var baseURL = os.Getenv("URL")
 
-const bodyTpl = `<h1>Confirm your subscription</h1>
-<br>
-<p>Use the following link to confirm your subscription to receive notifications about price updates in the route {{.subscription.Origin}} -> {{.subscription.Destination}} for {{.subscription.Date}}:
-<br>
-<a href="{{.baseURL}}/.netlify/functions/confirm_subscription?uid={{.uid}}">Confirm</a>
-</p>
-<br>
-<p>If you did not request this subscription, please ignore this message.</p>
-`
-
 var headers = map[string]string{
 	"Access-Control-Allow-Origin":  "*",
 	"Access-Control-Allow-Methods": "POST",
@@ -47,10 +37,10 @@ func createSubscription(ctx context.Context, body []byte) error {
 		return err
 	}
 
-	err = email.SendMessage(ctx, `Please confirm your subscription`, bodyTpl, map[string]interface{}{
-		"uid":          uid,
-		"baseURL":      baseURL,
+	link := baseURL + "/.netlify/functions/confirm_subscription?uid=" + uid
+	err = email.SendMessage(ctx, `Please confirm your subscription`, email.TplConfirmSubscription, map[string]interface{}{
 		"subscription": setting,
+		"link":         link,
 	}, setting.Email)
 	if err != nil {
 		return fmt.Errorf("could not send message: %w", err)
