@@ -7,7 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
+	"github.com/fabianMendez/wingo/pkg/date"
 	"github.com/fabianMendez/wingo/pkg/storage"
 	"github.com/google/uuid"
 )
@@ -131,4 +133,34 @@ func FilterConfirmed(settings []Setting) []Setting {
 		}
 	}
 	return filtered
+}
+
+func FilterBetweenDates(subscriptions []Setting, start, end time.Time) []Setting {
+	filtered := []Setting{}
+	for _, sub := range subscriptions {
+		d, err := date.Parse(sub.Date)
+		if err != nil {
+			continue
+		}
+		if (start.Before(*d) || start.Equal(*d)) && end.After(*d) {
+			filtered = append(filtered, sub)
+		}
+	}
+	return filtered
+}
+
+func GroupByRoute(subs []Setting) map[string]map[string][]Setting {
+	grouped := map[string]map[string][]Setting{}
+
+	for _, sub := range subs {
+		if grouped[sub.Origin] == nil {
+			grouped[sub.Origin] = map[string][]Setting{}
+		}
+		if grouped[sub.Destination] == nil {
+			grouped[sub.Origin][sub.Destination] = []Setting{}
+		}
+		grouped[sub.Origin][sub.Destination] = append(grouped[sub.Origin][sub.Destination], sub)
+	}
+
+	return grouped
 }
