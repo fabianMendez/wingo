@@ -243,7 +243,6 @@ func processSchedule(notificationSettings []notifications.Setting,
 	previous, previousFound := findFlight(savedFlights, origin, destination, date, flight.FlightNumber)
 
 	price := calculatePrice(flight.Vuelo, flight.Services)
-	fmt.Println(price)
 	// 1. Antes NO disponible y ahora disponible?
 	if !previousFound {
 		err := sendNewFlightNotification(notificationSettings, origin, destination, date, price)
@@ -484,9 +483,6 @@ func main() {
 
 	fast := len(os.Args) >= 2 && os.Args[1] == "fast"
 	runSubs := len(os.Args) < 2 || (len(os.Args) >= 2 && os.Args[1] == "subs")
-	if runSubs {
-		fmt.Println("Running sub command")
-	}
 
 	logger.Println("Cargando rutas guardadas")
 	savedRoutes, routes, err := loadRoutes(client, "routes.json")
@@ -500,8 +496,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	logger.Println("Subscriptions count:", len(subs))
 	if fast {
-		fmt.Fprintln(os.Stderr, "Settings count:", len(subs))
 		processNotificationSettings(client, subs, savedFlights, startDate, stopDate)
 		return
 	}
@@ -509,7 +505,9 @@ func main() {
 	logger.Println("Rutas guardadas:", len(savedRoutes))
 	logger.Println("Routes from API:", len(routes))
 	logger.Println("Vuelos guardados:", len(savedFlights))
-	if len(savedRoutes) == 0 {
+
+	if len(routes) == 0 {
+		logger.Println("Routes not found")
 		return
 	}
 
