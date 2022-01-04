@@ -107,7 +107,7 @@ func sendPriceChangedNotification(notificationSettings []notifications.Setting, 
 		accion = "BAJÓ"
 	}
 
-	subject := fmt.Sprintf("%s El precio %s a %s (desde %s).", emoji, accion, formatMoney(oldPrice), formatMoney(newPrice))
+	subject := fmt.Sprintf("%s El precio %s a %s (desde %s).", emoji, accion, formatMoney(newPrice), formatMoney(oldPrice))
 
 	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, "")
 }
