@@ -492,13 +492,17 @@ func main() {
 	runSubs := len(os.Args) < 2 || (len(os.Args) >= 2 && os.Args[1] == "subs")
 
 	logger.Println("Cargando rutas guardadas")
-	savedRoutes, routes, err := loadRoutes(client, "routes.json")
+	routesDir := os.Getenv("ROUTES_DIR")
+	if routesDir == "" {
+		routesDir = "./"
+	}
+	savedRoutes, routes, err := loadRoutes(client, routesDir+"routes.json")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	logger.Println("Cargando vuelos guardados")
-	savedFlights, err := loadSavedFlights(savedRoutes, startDate, stopDate)
+	savedFlights, err := loadSavedFlights(routesDir, savedRoutes, startDate, stopDate)
 	if err != nil {
 		log.Fatal(err)
 	}

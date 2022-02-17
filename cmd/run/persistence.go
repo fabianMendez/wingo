@@ -29,14 +29,14 @@ func loadFromFile(filename string, v interface{}) error {
 	return json.NewDecoder(f).Decode(v)
 }
 
-func loadSavedFlights(savedRoutes []wingo.Route, startDate, stopDate time.Time) (flightsMap, error) {
+func loadSavedFlights(dir string, savedRoutes []wingo.Route, startDate, stopDate time.Time) (flightsMap, error) {
 	wg := new(sync.WaitGroup)
 	flightsMutex := new(sync.Mutex)
 	flights := flightsMap{}
 
 	for _, origin := range savedRoutes {
 		for _, destination := range origin.Routes {
-			dirname := filepath.Join(outdir, origin.Code, destination.Code)
+			dirname := filepath.Join(dir, outdir, origin.Code, destination.Code)
 			direntries, err := os.ReadDir(dirname)
 			if err != nil {
 				if os.IsNotExist(err) {

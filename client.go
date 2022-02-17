@@ -244,6 +244,7 @@ func (c *Client) RetrieveServiceQuotes(flights []FlightService, token string) ([
 	}
 
 	headers := map[string]string{"Content-Type": "application/json"}
+	fmt.Println(string(bodyBytes))
 	err = c.requestJSON(http.MethodPost, u, bytes.NewReader(bodyBytes), &response, headers)
 	if err != nil {
 		return nil, err
