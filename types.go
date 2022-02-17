@@ -74,10 +74,11 @@ type LegDetail struct {
 }
 
 type FlightService struct {
-	Departure string `json:"departure"`
-	From      string `json:"from"`
-	To        string `json:"to"`
-	FlightID  int64  `json:"flightId"`
+	Departure              string `json:"departure"`
+	AnticipationDateFlight string `json:"anticipationDateFlight"`
+	From                   string `json:"from"`
+	To                     string `json:"to"`
+	FlightID               int64  `json:"flightId"`
 }
 
 type ServiceQuote struct {

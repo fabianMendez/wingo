@@ -52,8 +52,15 @@ func filtrarVuelos(vuelos []wingo.VueloIda) map[string][]wingo.Vuelo {
 
 func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, origin, destination, token string) ([]wingo.Service, error) {
 	log.Printf("buscando tarifas servicios del vuelo %s-%s: %s - %s\n", origin, destination, vuelo.FlightNumber, vuelo.DepartureDate)
+	now := time.Now()
 	serviceQuotes, err := client.RetrieveServiceQuotes([]wingo.FlightService{
-		{Departure: fecha, From: origin, To: destination, FlightID: vuelo.LogicalFlightID},
+		{
+			Departure:              fecha,
+			AnticipationDateFlight: now.Format(time.RFC3339),
+			From:                   origin,
+			To:                     destination,
+			FlightID:               vuelo.LogicalFlightID,
+		},
 	}, token)
 	if err != nil {
 		return nil, err
