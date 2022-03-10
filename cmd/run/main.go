@@ -417,9 +417,10 @@ func processNotificationSettings(client *wingo.Client, settings []notifications.
 type getInformationFlightsTask struct {
 	origin, destination string
 	startDate, endDate  time.Time
+	subs                []notifications.Setting
 }
 
-func sendRoutesPerDate(origin, destination string, startDate, stopDate time.Time, getInformationFlightsChan chan<- getInformationFlightsTask) {
+func sendRoutesPerDate(origin, destination string, startDate, stopDate time.Time, getInformationFlightsChan chan<- getInformationFlightsTask, subs []notifications.Setting) {
 	for startDate.Before(stopDate) || startDate.Equal(stopDate) {
 		endDate := startDate.AddDate(0, 1, 0)
 		if endDate.After(stopDate) {
@@ -430,6 +431,7 @@ func sendRoutesPerDate(origin, destination string, startDate, stopDate time.Time
 			destination: destination,
 			startDate:   startDate,
 			endDate:     endDate,
+			subs:        subs,
 		}
 		startDate = endDate
 	}
@@ -535,7 +537,22 @@ func main() {
 					fmt.Fprintln(os.Stderr, err)
 				}
 			}
-			getPriceTasks = append(getPriceTasks, tasks...)
+			if t.subs != nil {
+				for _, pt := range tasks {
+					found := false
+					for _, sub := range t.subs {
+						if sub.Date == pt.fecha {
+							found = true
+							break
+						}
+					}
+					if found {
+						getPriceTasks = append(getPriceTasks, pt)
+					}
+				}
+			} else {
+				getPriceTasks = append(getPriceTasks, tasks...)
+			}
 		}
 	}, maxWorkers)
 
@@ -560,7 +577,7 @@ func main() {
 				if routeStartDate != nil && routeStopDate != nil {
 					fmt.Println(origin, "=>", destination)
 					routesCount++
-					sendRoutesPerDate(origin, destination, *routeStartDate, *routeStopDate, getInformationFlightsChan)
+					sendRoutesPerDate(origin, destination, *routeStartDate, *routeStopDate, getInformationFlightsChan, subs)
 				} else {
 					fmt.Println("both dates are nil - should not happen")
 				}
@@ -571,7 +588,7 @@ func main() {
 			for _, destination := range origin.Routes {
 				fmt.Println(origin.Name, "=>", destination.Name)
 				routesCount++
-				sendRoutesPerDate(origin.Code, destination.Code, startDate, stopDate, getInformationFlightsChan)
+				sendRoutesPerDate(origin.Code, destination.Code, startDate, stopDate, getInformationFlightsChan, nil)
 			}
 		}
 	}
