@@ -8,6 +8,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fabianMendez/bits v1.2.0
 	github.com/google/uuid v1.3.0
+	github.com/joho/godotenv v1.4.0
 	github.com/mailgun/mailgun-go/v4 v4.6.0
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f

@@ -10,3 +10,4 @@ functions:
 	mkdir -p build/functions
 	go build -o build/functions/create_subscription cmd/functions/create_subscription/main.go
 	go build -o build/functions/confirm_subscription cmd/functions/confirm_subscription/main.go
+	go build -o build/functions/route_history cmd/functions/route_history/main.go

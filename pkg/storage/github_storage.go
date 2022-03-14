@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"time"
 )
 
 type GithubStorage struct {
@@ -76,6 +78,8 @@ func (ss GithubStorage) requestJSON(method, u string, body io.Reader, v interfac
 	}
 	defer resp.Body.Close()
 
+	// data, _ := io.ReadAll(resp.Body)
+	// fmt.Println(string(data))
 	if v != nil {
 		err = json.NewDecoder(resp.Body).Decode(v)
 		if err != nil {
@@ -88,6 +92,11 @@ func (ss GithubStorage) requestJSON(method, u string, body io.Reader, v interfac
 
 func (ss GithubStorage) url(path string) string {
 	return fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", ss.Owner, ss.Repo, path)
+}
+
+func (ss GithubStorage) urlCommits(path string, since time.Time) string {
+	return fmt.Sprintf("https://api.github.com/repos/%s/%s/commits?path=%s&since=%s",
+		ss.Owner, ss.Repo, url.QueryEscape(path), since.Format(time.RFC3339))
 }
 
 type fileContentsResponse struct {
@@ -109,10 +118,13 @@ type fileContentsResponse struct {
 	} `json:"_links"`
 }
 
-func (ss GithubStorage) getFileContents(path string) (fileContentsResponse, error) {
+func (ss GithubStorage) getFileContents(path, ref string) (fileContentsResponse, error) {
 	var response fileContentsResponse
 
 	u := ss.url(path)
+	if ref != "" {
+		u += "?ref=" + url.QueryEscape(ref)
+	}
 	err := ss.requestJSON(http.MethodGet, u, nil, &response)
 	if err != nil {
 		return response, err
@@ -122,7 +134,7 @@ func (ss GithubStorage) getFileContents(path string) (fileContentsResponse, erro
 }
 
 func (ss GithubStorage) getSHA(path string) string {
-	fileContents, err := ss.getFileContents(path)
+	fileContents, err := ss.getFileContents(path, "")
 	if err != nil {
 		return ""
 	}
@@ -130,7 +142,11 @@ func (ss GithubStorage) getSHA(path string) string {
 }
 
 func (ss GithubStorage) Read(path string) ([]byte, error) {
-	fileContents, err := ss.getFileContents(path)
+	return ss.ReadRef(path, "")
+}
+
+func (ss GithubStorage) ReadRef(path, ref string) ([]byte, error) {
+	fileContents, err := ss.getFileContents(path, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -192,4 +208,27 @@ func (ss GithubStorage) Delete(path string, message string) error {
 	}
 
 	return ss.requestJSON(http.MethodDelete, u, buf, nil)
+}
+
+func (ss GithubStorage) Commits(path string, since time.Time) (map[string]string, error) {
+	u := ss.urlCommits(path, since)
+
+	var resp []struct {
+		SHA    string `json:"sha"`
+		Commit struct {
+			Author struct {
+				Date string `json:"date"`
+			} `json:"author"`
+		} `json:"commit"`
+	}
+
+	err := ss.requestJSON(http.MethodGet, u, nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+	results := map[string]string{}
+	for _, it := range resp {
+		results[it.Commit.Author.Date] = it.SHA
+	}
+	return results, nil
 }
