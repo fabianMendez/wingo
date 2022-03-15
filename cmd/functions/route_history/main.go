@@ -57,6 +57,7 @@ func routeHistory(origin, destination, date, flightNumber string) (map[string]fl
 	twoWeeksAgo := time.Now().AddDate(0, 0, -15)
 	hashes, err := githubStorage.Commits(path, twoWeeksAgo)
 	if err != nil {
+		log.Println("could not get commits: ", err)
 		return nil, err
 	}
 	vuelos := map[string]float64{}
@@ -74,13 +75,13 @@ func routeHistory(origin, destination, date, flightNumber string) (map[string]fl
 			date := t.date
 			content, err := githubStorage.ReadRef(path, hash)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				fmt.Fprintln(os.Stderr, "could not read ref: ", err)
 				return
 			}
 			var vuelo vueloArchivado
 			err = json.Unmarshal(content, &vuelo)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				fmt.Fprintln(os.Stderr, "could not decode archived flight: ", err)
 				return
 			}
 			price := calculatePrice(vuelo.Vuelo, vuelo.Services)
@@ -101,11 +102,13 @@ func routeHistory(origin, destination, date, flightNumber string) (map[string]fl
 }
 
 func handler(ctx context.Context, request events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
-	log.Println("fetching route history")
+	log.Println("fetching route history: ", request.Path)
 
 	// BOG/HAV/2022-04-14
 	params := strings.Split(request.Path, "/")
-	if len(params) != 4 {
+	nparams := 4
+	params = params[len(params)-nparams:]
+	if len(params) != nparams {
 		return &events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
 			Headers:    headers,

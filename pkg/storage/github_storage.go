@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -80,6 +81,7 @@ func (ss GithubStorage) requestJSON(method, u string, body io.Reader, v interfac
 
 	// data, _ := io.ReadAll(resp.Body)
 	// fmt.Println(string(data))
+	log.Println(resp.Status, method, u)
 	if v != nil {
 		err = json.NewDecoder(resp.Body).Decode(v)
 		if err != nil {
@@ -212,6 +214,7 @@ func (ss GithubStorage) Delete(path string, message string) error {
 
 func (ss GithubStorage) Commits(path string, since time.Time) (map[string]string, error) {
 	u := ss.urlCommits(path, since)
+	log.Println("Commits URL: ", u)
 
 	var resp []struct {
 		SHA    string `json:"sha"`
