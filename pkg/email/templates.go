@@ -145,6 +145,17 @@ const TplPriceChange = TplPreffix + `
   <td align="center" vertical-align="middle" style="font-size:0px;padding:10px 25px;word-break:break-word;">
 	<table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:separate;line-height:100%;">
 	  <tr>
+      <td align="center" bgcolor="#4068E0" role="presentation" style="border:none;border-radius:3px;cursor:auto;mso-padding-alt:10px 25px;background:#4068E0;" valign="middle">
+        <a href="{{.LinkHistory}}" style="display:inline-block;background:#4068E0;color:#ffffff;font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:13px;font-weight:bold;line-height:120%;margin:0;text-decoration:none;text-transform:none;padding:10px 25px;mso-padding-alt:0px;border-radius:3px;" target="_blank">Historial</a>
+      </td>
+    </tr>
+  </table>
+  </td>
+</tr>
+<tr>
+  <td align="center" vertical-align="middle" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+	<table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:separate;line-height:100%;">
+	  <tr>
 		<td align="center" bgcolor="#14B8A6" role="presentation" style="border:none;border-radius:3px;cursor:auto;mso-padding-alt:10px 25px;background:#14B8A6;" valign="middle">
 		  <a href="{{.Link}}" style="display:inline-block;background:#14B8A6;color:#ffffff;font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:13px;font-weight:bold;line-height:120%;margin:0;text-decoration:none;text-transform:none;padding:10px 25px;mso-padding-alt:0px;border-radius:3px;" target="_blank">Ver en Wingo</a>
 		</td>

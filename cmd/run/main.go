@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -76,19 +77,23 @@ func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, ori
 	return serviceQuotes[0].Services, nil
 }
 
-func sendNotificationEmail(notificationSettings []notifications.Setting, origin, destination, date string, message, body string) error {
+func sendNotificationEmail(notificationSettings []notifications.Setting, origin, destination, date, flightNumber string, message, body string) error {
 	subs := notifications.GroupByRoute(notificationSettings)[origin][destination]
 	heading := fmt.Sprintf("✈️ %s-%s/%s", origin, destination, date)
+	baseURL := os.Getenv("BASE_URL")
 
 	link := fmt.Sprintf("https://booking.wingo.com/es/search/%s/%s/%s/1/0/0/1/COP/0/0", origin, destination, date)
+	linkHistory := fmt.Sprintf("%s/history?origin=%s&destination=%s&date=%s&flightNumber=%s", baseURL,
+		url.QueryEscape(origin), url.QueryEscape(destination), url.QueryEscape(date), url.QueryEscape(flightNumber))
 
 	for _, sub := range subs {
-		cancelSubscriptionLink := fmt.Sprintf("%s/.netlify/functions/cancel_subscription?uid=%s", os.Getenv("BASE_URL"), sub.UID)
+		cancelSubscriptionLink := fmt.Sprintf("%s/.netlify/functions/cancel_subscription?uid=%s", baseURL, sub.UID)
 
 		fmt.Println("["+sub.Email+"]:", heading, message)
 		data := map[string]interface{}{
 			"Message":                message,
 			"Link":                   link,
+			"LinkHistory":            linkHistory,
 			"CancelSubscriptionLink": cancelSubscriptionLink,
 		}
 		err := email.SendMessageWithText(context.Background(), heading, message, email.TplPriceChange, data, strings.Split(sub.Email, ",")...)
@@ -100,13 +105,13 @@ func sendNotificationEmail(notificationSettings []notifications.Setting, origin,
 	return nil
 }
 
-func sendNewFlightNotification(notificationSettings []notifications.Setting, origin, destination, date string, price float64) error {
+func sendNewFlightNotification(notificationSettings []notifications.Setting, origin, destination, date, flightNumber string, price float64) error {
 	subject := fmt.Sprintf("Precio actual: %s.", formatMoney(price))
 
-	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, "")
+	return sendNotificationEmail(notificationSettings, origin, destination, date, flightNumber, subject, "")
 }
 
-func sendPriceChangedNotification(notificationSettings []notifications.Setting, origin, destination, date string, oldPrice, newPrice float64) error {
+func sendPriceChangedNotification(notificationSettings []notifications.Setting, origin, destination, date, flightNumber string, oldPrice, newPrice float64) error {
 	emoji := "↗️"
 	accion := "SUBIÓ"
 	if oldPrice > newPrice {
@@ -116,12 +121,12 @@ func sendPriceChangedNotification(notificationSettings []notifications.Setting, 
 
 	subject := fmt.Sprintf("%s El precio %s a %s (desde %s).", emoji, accion, formatMoney(newPrice), formatMoney(oldPrice))
 
-	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, "")
+	return sendNotificationEmail(notificationSettings, origin, destination, date, flightNumber, subject, "")
 }
 
-func sendNotAvailableNotification(notificationSettings []notifications.Setting, origin, destination, date string, lastPrice float64) error {
+func sendNotAvailableNotification(notificationSettings []notifications.Setting, origin, destination, date, flightNumber string, lastPrice float64) error {
 	subject := "El vuelo ya NO está disponible."
-	return sendNotificationEmail(notificationSettings, origin, destination, date, subject, "")
+	return sendNotificationEmail(notificationSettings, origin, destination, date, flightNumber, subject, "")
 }
 
 func convertToTasks(flightsInformation wingo.FlightsInformation, origin, destination string) []getPriceTask {
@@ -173,7 +178,7 @@ func processFlight(notificationSettings []notifications.Setting, savedFlights fl
 	price := calculatePrice(flight.Vuelo, flight.Services)
 	// 1. Antes NO disponible y ahora disponible?
 	if !previousFound {
-		err := sendNewFlightNotification(notificationSettings, origin, destination, date, price)
+		err := sendNewFlightNotification(notificationSettings, origin, destination, date, flight.FlightNumber, price)
 		if err != nil {
 			return err
 		}
@@ -181,7 +186,7 @@ func processFlight(notificationSettings []notifications.Setting, savedFlights fl
 		savedPrice := calculatePrice(previous.Vuelo, previous.Services)
 		// 2. Antes disponible y ahora diferente precio?
 		if price != savedPrice {
-			err := sendPriceChangedNotification(notificationSettings, origin, destination, date, savedPrice, price)
+			err := sendPriceChangedNotification(notificationSettings, origin, destination, date, flight.FlightNumber, savedPrice, price)
 			if err != nil {
 				return err
 			}
@@ -203,7 +208,7 @@ func processUnavailableFlights(notificationSettings []notifications.Setting, sav
 						_ = os.Remove(flightpath)
 
 						savedPrice := calculatePrice(savedFlight.Vuelo, savedFlight.Services)
-						err := sendNotAvailableNotification(notificationSettings, origin, destination, date, savedPrice)
+						err := sendNotAvailableNotification(notificationSettings, origin, destination, date, savedFlight.FlightNumber, savedPrice)
 						if err != nil {
 							return err
 						}
@@ -232,7 +237,7 @@ func processUnavailableFlightsForSubs(subs []notifications.Setting, savedFlights
 						_ = os.Remove(flightpath)
 
 						savedPrice := calculatePrice(savedFlight.Vuelo, savedFlight.Services)
-						err := sendNotAvailableNotification(subs, origin, destination, date, savedPrice)
+						err := sendNotAvailableNotification(subs, origin, destination, date, savedFlight.FlightNumber, savedPrice)
 						if err != nil {
 							return err
 						}
@@ -252,7 +257,7 @@ func processSchedule(notificationSettings []notifications.Setting,
 	price := calculatePrice(flight.Vuelo, flight.Services)
 	// 1. Antes NO disponible y ahora disponible?
 	if !previousFound {
-		err := sendNewFlightNotification(notificationSettings, origin, destination, date, price)
+		err := sendNewFlightNotification(notificationSettings, origin, destination, date, flight.FlightNumber, price)
 		if err != nil {
 			return err
 		}
@@ -260,7 +265,7 @@ func processSchedule(notificationSettings []notifications.Setting,
 		savedPrice := calculatePrice(previous.Vuelo, previous.Services)
 		// 2. Antes disponible y ahora diferente precio?
 		if price != savedPrice {
-			err := sendPriceChangedNotification(notificationSettings, origin, destination, date, savedPrice, price)
+			err := sendPriceChangedNotification(notificationSettings, origin, destination, date, flight.FlightNumber, savedPrice, price)
 			if err != nil {
 				return err
 			}
