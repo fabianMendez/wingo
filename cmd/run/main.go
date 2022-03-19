@@ -52,7 +52,7 @@ func filtrarVuelos(vuelos []wingo.VueloIda) map[string][]wingo.Vuelo {
 }
 
 func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, origin, destination, token string) ([]wingo.Service, error) {
-	log.Printf("buscando tarifas servicios del vuelo %s-%s: %s - %s\n", origin, destination, vuelo.FlightNumber, vuelo.DepartureDate)
+	log.Printf("buscando tarifas servicios del vuelo %s-%s (%s): %s - %s\n", origin, destination, vuelo.DepartureDate, vuelo.FlightNumber, vuelo.DepartureDate)
 	now := time.Now()
 	serviceQuotes, err := client.RetrieveServiceQuotes([]wingo.FlightService{
 		{
@@ -66,7 +66,7 @@ func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, ori
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("tarifas encontradas del vuelo %s-%s: %s - %s\n", origin, destination, vuelo.FlightNumber, vuelo.DepartureDate)
+	log.Printf("tarifas encontradas del vuelo %s-%s (%s): %s - %s\n", origin, destination, vuelo.DepartureDate, vuelo.FlightNumber, vuelo.DepartureDate)
 
 	// log.Println("calculando precio")
 	// adminFares := wingo.GetAdminFares(serviceQuotes[0])
@@ -87,6 +87,9 @@ func sendNotificationEmail(notificationSettings []notifications.Setting, origin,
 		url.QueryEscape(origin), url.QueryEscape(destination), url.QueryEscape(date), url.QueryEscape(flightNumber))
 
 	for _, sub := range subs {
+		if sub.Date != date {
+			continue
+		}
 		cancelSubscriptionLink := fmt.Sprintf("%s/.netlify/functions/cancel_subscription?uid=%s", baseURL, sub.UID)
 
 		fmt.Println("["+sub.Email+"]:", heading, message)
@@ -304,7 +307,7 @@ func getInformationFlightsMonthly(client *wingo.Client, origin, destination stri
 	}
 
 	tasks := convertToTasks(flightsInformation, origin, destination)
-	fmt.Printf("Got flightsInformation %s-%s: %d\n", origin, destination, len(tasks))
+	fmt.Printf("Got flightsInformation %s/%s (%s - %s): %d\n", origin, destination, startDate, endDate, len(tasks))
 	return tasks
 
 	// for _, task := range tasks {
