@@ -51,9 +51,23 @@ func filtrarVuelos(vuelos []wingo.VueloIda) map[string][]wingo.Vuelo {
 	return filtrados
 }
 
+var serviceCache map[string][]wingo.Service
+var mx sync.Mutex
+
 func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, origin, destination, token string) ([]wingo.Service, error) {
 	log.Printf("buscando tarifas servicios del vuelo %s-%s (%s): %s - %s\n", origin, destination, vuelo.DepartureDate, vuelo.FlightNumber, vuelo.DepartureDate)
 	now := time.Now()
+
+	mx.Lock()
+	if serviceCache == nil {
+		serviceCache = make(map[string][]wingo.Service)
+	}
+	cachekey := origin + "-" + destination
+	if services, found := serviceCache[cachekey]; found {
+		return services, nil
+	}
+	mx.Unlock()
+
 	serviceQuotes, err := client.RetrieveServiceQuotes([]wingo.FlightService{
 		{
 			Departure:              fecha,
@@ -74,7 +88,11 @@ func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, ori
 
 	// log.Printf("precio del vuelo %s-%s (%s - %s): %s\n", origin, destination, vuelo.FlightNumber, vuelo.DepartureDate, formatMoney(precio))
 
-	return serviceQuotes[0].Services, nil
+	services := serviceQuotes[0].Services
+	mx.Lock()
+	serviceCache[cachekey] = services
+	mx.Unlock()
+	return services, nil
 }
 
 func sendNotificationEmail(notificationSettings []notifications.Setting, origin, destination, date, flightNumber string, message, body string) error {
