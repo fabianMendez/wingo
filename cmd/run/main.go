@@ -18,6 +18,7 @@ import (
 	"github.com/fabianMendez/wingo/pkg/date"
 	"github.com/fabianMendez/wingo/pkg/email"
 	"github.com/fabianMendez/wingo/pkg/notifications"
+	"github.com/fabianMendez/wingo/pkg/whatsapp"
 )
 
 var (
@@ -120,6 +121,13 @@ func sendNotificationEmail(notificationSettings []notifications.Setting, origin,
 		err := email.SendMessageWithText(context.Background(), heading, message, email.TplPriceChange, data, strings.Split(sub.Email, ",")...)
 		if err != nil {
 			return err
+		}
+
+		if len(sub.PhoneNumber) != 0 {
+			err = whatsapp.SendMessage(sub.PhoneNumber, heading, message)
+			if err != nil {
+				log.Print(err)
+			}
 		}
 	}
 

@@ -29,6 +29,7 @@ type Setting struct {
 	Destination string `json:"destination"`
 	Date        string `json:"date"`
 	Email       string `json:"email"`
+	PhoneNumber string `json:"phone_number"`
 	Confirmed   bool   `json:"confirmed"`
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/fabianMendez/wingo/pkg/email"
 	"github.com/fabianMendez/wingo/pkg/notifications"
+	"github.com/fabianMendez/wingo/pkg/whatsapp"
 )
 
 var baseURL = os.Getenv("URL")
@@ -38,16 +39,29 @@ func createSubscription(ctx context.Context, body []byte) error {
 	}
 
 	link := baseURL + "/.netlify/functions/confirm_subscription?uid=" + uid
-	// `Please confirm your subscription`
-	err = email.SendMessage(ctx, `Por favor confirma tu suscripción`, email.TplConfirmSubscription, map[string]interface{}{
-		"subscription": setting,
-		"link":         link,
-	}, setting.Email)
-	if err != nil {
-		return fmt.Errorf("could not send message: %w", err)
+	if len(setting.Email) != 0 {
+		// `Please confirm your subscription`
+		err = email.SendMessage(ctx, `Por favor confirma tu suscripción`, email.TplConfirmSubscription, map[string]interface{}{
+			"subscription": setting,
+			"link":         link,
+		}, setting.Email)
+		if err != nil {
+			return fmt.Errorf("could not send email message: %w", err)
+		}
+
+		log.Println("Email message sent")
 	}
 
-	log.Println("Message sent")
+	if len(setting.PhoneNumber) != 0 {
+		message := fmt.Sprintf("Usa el siguiente link para confirmar tu suscripción para recibir notificaciones sobre actualizaciones del precio de la ruta %s -> %s el %s:\n\n%s",
+			setting.Origin, setting.Destination, setting.Date, link)
+		err := whatsapp.SendMessage(setting.PhoneNumber, "Por favor confirma tu suscripción", message)
+		if err != nil {
+			return fmt.Errorf("could not send whatsapp message: %w", err)
+		}
+
+		log.Println("Whatsapp message sent")
+	}
 
 	return nil
 }
