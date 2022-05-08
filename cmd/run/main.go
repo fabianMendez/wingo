@@ -61,6 +61,9 @@ func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, ori
 	now := time.Now()
 
 	mx.Lock()
+	if cacheMx == nil {
+		cacheMx = make(map[string]*sync.Mutex)
+	}
 	if serviceCache == nil {
 		serviceCache = make(map[string][]wingo.Service)
 	}
