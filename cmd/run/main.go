@@ -79,6 +79,8 @@ func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, ori
 
 	mx.Lock()
 	if services, found := serviceCache[key]; found {
+		mx.Unlock()
+		mx2.Unlock()
 		return services, nil
 	}
 	mx.Unlock()
@@ -93,6 +95,7 @@ func printInformation(client *wingo.Client, fecha string, vuelo wingo.Vuelo, ori
 		},
 	}, token)
 	if err != nil {
+		mx2.Unlock()
 		return nil, err
 	}
 	log.Printf("tarifas encontradas del vuelo %s-%s (%s): %s - %s\n", origin, destination, vuelo.DepartureDate, vuelo.FlightNumber, vuelo.DepartureDate)
